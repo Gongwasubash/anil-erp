@@ -255,6 +255,10 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
     else if (path.includes('month_master')) setActiveModule('month_master');
     else if (path.includes('fee_month')) setActiveModule('fee_month');
     else if (path.includes('fee_structure')) setActiveModule('fee_structure');
+    else if (path.includes('due_student_fee')) setActiveModule('due_student_fee');
+    else if (path.includes('student_fee_submit')) setActiveModule('student_fee_submit');
+    else if (path.includes('view_student_fee_details')) setActiveModule('view_student_fee_details');
+    else if (path.includes('daily_fee_receipt_register')) setActiveModule('daily_fee_receipt_register');
     else setActiveModule('submit');
   }, [location.pathname]);
 
@@ -267,6 +271,10 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
     else if (activeModule === 'month_master') fetchMonthMaster();
     else if (activeModule === 'fee_month') fetchFeeMonths();
     else if (activeModule === 'fee_structure') { fetchFeeStructureDetails(); initializeFeeHeads(); fetchFinYears(); }
+    else if (activeModule === 'due_student_fee') { fetchFinYears(); fetchFeeHeads(); }
+    else if (activeModule === 'student_fee_submit') { fetchFinYears(); fetchFeeHeads(); }
+    else if (activeModule === 'view_student_fee_details') { fetchFinYears(); fetchFeeHeads(); }
+    else if (activeModule === 'daily_fee_receipt_register') { fetchFinYears(); fetchFeeHeads(); }
     else if (activeModule === 'submit') fetchStudents();
   }, [activeModule]);
 
@@ -1467,6 +1475,401 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                 RESET
               </BlueBtn>
             </div>
+          </div>
+        )}
+
+        {activeModule === 'due_student_fee' && (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Due Student Fee
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <SectionBox>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">School :</label>
+                  <Select defaultValue="NORMAL MAX TEST ADMIN">
+                    <option value="NORMAL MAX TEST ADMIN">NORMAL MAX TEST ADMIN</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Branch :</label>
+                  <Select defaultValue="Normal Max Test Admin">
+                    <option value="Normal Max Test Admin">Normal Max Test Admin</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Batch :</label>
+                  <Select>
+                    <option value="">--- Select ---</option>
+                    {finYearsList.map(fy => <option key={fy.id} value={fy.financialYear}>{fy.financialYear}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Class :</label>
+                  <Select>
+                    <option value="">--- Select ---</option>
+                    <option value="Class 1">Class 1</option>
+                    <option value="Class 2">Class 2</option>
+                    <option value="Class 3">Class 3</option>
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5</option>
+                    <option value="Class 6">Class 6</option>
+                    <option value="Class 7">Class 7</option>
+                    <option value="Class 8">Class 8</option>
+                    <option value="Class 9">Class 9</option>
+                    <option value="Class 10">Class 10</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Section :</label>
+                  <Select>
+                    <option value="">---Select---</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">First Name :</label>
+                  <Input placeholder="Enter first name" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Month Name :</label>
+                  <Select>
+                    <option value="">--select--</option>
+                    <option value="Baisakh">Baisakh</option>
+                    <option value="Jestha">Jestha</option>
+                    <option value="Ashadh">Ashadh</option>
+                    <option value="Shrawan">Shrawan</option>
+                    <option value="Bhadra">Bhadra</option>
+                    <option value="Ashoj">Ashoj</option>
+                    <option value="Kartik">Kartik</option>
+                    <option value="Mangsir">Mangsir</option>
+                    <option value="Poush">Poush</option>
+                    <option value="Magh">Magh</option>
+                    <option value="Falgun">Falgun</option>
+                    <option value="Chaitra">Chaitra</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Fee Category :</label>
+                  <Select>
+                    <option value="">------Select--------</option>
+                    {feeHeadsList.map(fh => <option key={fh.id} value={fh.feeHead}>{fh.feeHead}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Enrolment No :</label>
+                  <Input placeholder="Enter enrolment number" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Pay Till :</label>
+                  <Input type="date" />
+                </div>
+              </div>
+              <div className="p-4 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
+                <BlueBtn onClick={() => alert('Search Due Student Fee')}>
+                  <SearchIcon size={12} /> SEARCH
+                </BlueBtn>
+                <BlueBtn onClick={() => alert('Reset Form')} color="bg-gray-400">
+                  RESET
+                </BlueBtn>
+              </div>
+            </SectionBox>
+          </div>
+        )}
+
+        {activeModule === 'student_fee_submit' && (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Student Fees Submit Details
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <SectionBox>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">School :</label>
+                  <Select defaultValue="NORMAL MAX TEST ADMIN">
+                    <option value="NORMAL MAX TEST ADMIN">NORMAL MAX TEST ADMIN</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Branch :</label>
+                  <Select defaultValue="Normal Max Test Admin">
+                    <option value="Normal Max Test Admin">Normal Max Test Admin</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Fee Category :</label>
+                  <Select>
+                    <option value="">------Select--------</option>
+                    {feeHeadsList.map(fh => <option key={fh.id} value={fh.feeHead}>{fh.feeHead}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Batch :</label>
+                  <Select defaultValue="2080">
+                    <option value="2080">2080</option>
+                    {finYearsList.map(fy => <option key={fy.id} value={fy.financialYear}>{fy.financialYear}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Class :</label>
+                  <Select>
+                    <option value="">--- Select ---</option>
+                    <option value="Class 1">Class 1</option>
+                    <option value="Class 2">Class 2</option>
+                    <option value="Class 3">Class 3</option>
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5</option>
+                    <option value="Class 6">Class 6</option>
+                    <option value="Class 7">Class 7</option>
+                    <option value="Class 8">Class 8</option>
+                    <option value="Class 9">Class 9</option>
+                    <option value="Class 10">Class 10</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Section :</label>
+                  <Select>
+                    <option value="">--- Select ---</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">First Name :</label>
+                  <Input placeholder="Enter first name" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Roll Number :</label>
+                  <Input placeholder="Enter roll number" />
+                </div>
+              </div>
+              <div className="p-4 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
+                <BlueBtn onClick={() => alert('Search Student Fee Submit')}>
+                  <SearchIcon size={12} /> SEARCH
+                </BlueBtn>
+                <BlueBtn onClick={() => alert('Reset Form')} color="bg-gray-400">
+                  RESET
+                </BlueBtn>
+              </div>
+            </SectionBox>
+          </div>
+        )}
+
+        {activeModule === 'view_student_fee_details' && (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                View Student Fees Details
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-md font-bold text-gray-700 mb-4">Search Student</h3>
+            </div>
+
+            <SectionBox>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">School :</label>
+                  <Select defaultValue="NORMAL MAX TEST ADMIN">
+                    <option value="NORMAL MAX TEST ADMIN">NORMAL MAX TEST ADMIN</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Branch :</label>
+                  <Select defaultValue="Normal Max Test Admin">
+                    <option value="Normal Max Test Admin">Normal Max Test Admin</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Batch :</label>
+                  <Select defaultValue="2080">
+                    <option value="2080">2080</option>
+                    {finYearsList.map(fy => <option key={fy.id} value={fy.financialYear}>{fy.financialYear}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Class :</label>
+                  <Select>
+                    <option value="">--- Select ---</option>
+                    <option value="Class 1">Class 1</option>
+                    <option value="Class 2">Class 2</option>
+                    <option value="Class 3">Class 3</option>
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5</option>
+                    <option value="Class 6">Class 6</option>
+                    <option value="Class 7">Class 7</option>
+                    <option value="Class 8">Class 8</option>
+                    <option value="Class 9">Class 9</option>
+                    <option value="Class 10">Class 10</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Section :</label>
+                  <Select>
+                    <option value="">---Select---</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Instalment Name :</label>
+                  <Select>
+                    <option value="">---Select---</option>
+                    <option value="First Instalment">First Instalment</option>
+                    <option value="Second Instalment">Second Instalment</option>
+                    <option value="Third Instalment">Third Instalment</option>
+                    <option value="Final Instalment">Final Instalment</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Fee Category :</label>
+                  <Select>
+                    <option value="">------Select--------</option>
+                    {feeHeadsList.map(fh => <option key={fh.id} value={fh.feeHead}>{fh.feeHead}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">First Name :</label>
+                  <Input placeholder="Enter first name" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Student ID :</label>
+                  <Input placeholder="Enter student ID" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">From Date :</label>
+                  <Input type="date" defaultValue="2026-01-13" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">To Date :</label>
+                  <Input type="date" defaultValue="2026-01-13" />
+                </div>
+              </div>
+              <div className="p-4 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
+                <BlueBtn onClick={() => alert('Search Student Fee Details')}>
+                  <SearchIcon size={12} /> SEARCH
+                </BlueBtn>
+                <BlueBtn onClick={() => alert('Reset Form')} color="bg-gray-400">
+                  RESET
+                </BlueBtn>
+              </div>
+            </SectionBox>
+          </div>
+        )}
+
+        {activeModule === 'daily_fee_receipt_register' && (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Daily Fee Receipt Register
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <SectionBox>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">School :</label>
+                  <Select defaultValue="NORMAL MAX TEST ADMIN">
+                    <option value="NORMAL MAX TEST ADMIN">NORMAL MAX TEST ADMIN</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Branch :</label>
+                  <Select defaultValue="Normal Max Test Admin">
+                    <option value="Normal Max Test Admin">Normal Max Test Admin</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Batch :</label>
+                  <Select defaultValue="2080">
+                    <option value="2080">2080</option>
+                    {finYearsList.map(fy => <option key={fy.id} value={fy.financialYear}>{fy.financialYear}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Class :</label>
+                  <Select>
+                    <option value="">--- Select ---</option>
+                    <option value="Class 1">Class 1</option>
+                    <option value="Class 2">Class 2</option>
+                    <option value="Class 3">Class 3</option>
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5</option>
+                    <option value="Class 6">Class 6</option>
+                    <option value="Class 7">Class 7</option>
+                    <option value="Class 8">Class 8</option>
+                    <option value="Class 9">Class 9</option>
+                    <option value="Class 10">Class 10</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Instalment Name :</label>
+                  <Select>
+                    <option value="">---Select---</option>
+                    <option value="First Instalment">First Instalment</option>
+                    <option value="Second Instalment">Second Instalment</option>
+                    <option value="Third Instalment">Third Instalment</option>
+                    <option value="Final Instalment">Final Instalment</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Fee Category :</label>
+                  <Select>
+                    <option value="">------Select--------</option>
+                    {feeHeadsList.map(fh => <option key={fh.id} value={fh.feeHead}>{fh.feeHead}</option>)}
+                  </Select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">First Name :</label>
+                  <Input placeholder="Enter first name" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Student ID :</label>
+                  <Input placeholder="Enter student ID" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">From Date :</label>
+                  <Input type="date" defaultValue="2026-01-13" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">To Date :</label>
+                  <Input type="date" defaultValue="2026-01-13" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Mode :</label>
+                  <Select>
+                    <option value="">--Select--</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </Select>
+                </div>
+              </div>
+              <div className="p-4 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
+                <BlueBtn onClick={() => alert('Search Daily Fee Receipt Register')}>
+                  <SearchIcon size={12} /> SEARCH
+                </BlueBtn>
+                <BlueBtn onClick={() => alert('Reset Form')} color="bg-gray-400">
+                  RESET
+                </BlueBtn>
+              </div>
+            </SectionBox>
           </div>
         )}
 

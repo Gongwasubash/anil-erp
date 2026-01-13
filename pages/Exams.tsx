@@ -1,214 +1,161 @@
-
-import React, { useState } from 'react';
-import { 
-  ClipboardCheck, 
-  Search, 
-  LayoutGrid, 
-  List, 
-  FileText,
-  Printer,
-  ChevronRight,
-  School
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Edit, Trash2, Plus } from 'lucide-react';
 import { User } from '../types';
-import { calculateGrade, formatCurrency } from '../constants';
 
-const MOCK_SUBJECTS = [
-  { id: '1', name: 'Mathematics', fm: 100, pm: 35, type: 'Theory' },
-  { id: '2', name: 'Science', fm: 75, pm: 25, type: 'Theory' },
-  { id: '3', name: 'Social Studies', fm: 100, pm: 35, type: 'Theory' },
-  { id: '4', name: 'English', fm: 100, pm: 35, type: 'Theory' },
-  { id: '5', name: 'Computer', fm: 50, pm: 18, type: 'Theory' },
-];
+// UI Components
+const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+  <input {...props} className={`border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors ${props.className || ''}`} />
+);
 
-// Added interface for component props to resolve potential type errors in App.tsx
-interface ExamsProps {
-  user: User;
+const BlueBtn = ({ children, onClick, color = "bg-[#3498db]", disabled = false }: any) => (
+  <button 
+    type="button"
+    onClick={onClick} 
+    disabled={disabled}
+    className={`${color} text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md`}
+  >
+    {children}
+  </button>
+);
+
+const SectionBox = ({ children }: { children: React.ReactNode }) => (
+  <div className="border-2 border-gray-200 shadow-sm mb-6 bg-white overflow-hidden transition-all duration-300">
+    <div className="overflow-x-auto">
+      {children}
+    </div>
+  </div>
+);
+
+interface Grade {
+  id: string;
+  gradeName: string;
+  minPercent: number;
+  maxPercent: number;
+  gradePoint: number;
+  minGPoint: number;
+  maxGPoint: number;
+  description: string;
+  teacherRemarks: string;
 }
 
-const Exams: React.FC<ExamsProps> = ({ user }) => {
-  const [view, setView] = useState<'list' | 'entry'>('list');
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+const Exams: React.FC<{ user: User }> = ({ user }) => {
+  const location = useLocation();
+  const [activeModule, setActiveModule] = useState(() => {
+    const path = location.pathname;
+    if (path.includes('manage_grade')) return 'manage_grade';
+    return 'manage_grade';
+  });
 
-  const mockResults = [
-    { subject: 'Mathematics', theory: 92, practical: 0, total: 92 },
-    { subject: 'Science', theory: 68, practical: 22, total: 90 },
-    { subject: 'Social Studies', theory: 84, practical: 0, total: 84 },
-    { subject: 'English', theory: 78, practical: 0, total: 78 },
-    { subject: 'Computer Science', theory: 45, practical: 48, total: 93 },
-  ];
+  const [gradeForm, setGradeForm] = useState({
+    gradeName: ''
+  });
+
+  const [gradesList] = useState<Grade[]>([
+    { id: '1', gradeName: 'E', minPercent: 0, maxPercent: 19.99, gradePoint: 0.8, minGPoint: 0, maxGPoint: 0.8, description: 'Very Insufficient', teacherRemarks: '' },
+    { id: '2', gradeName: 'D', minPercent: 20, maxPercent: 29.99, gradePoint: 1.2, minGPoint: 0.81, maxGPoint: 1.2, description: 'Insufficient', teacherRemarks: '' },
+    { id: '3', gradeName: 'D+', minPercent: 30, maxPercent: 39.99, gradePoint: 1.6, minGPoint: 1.21, maxGPoint: 1.6, description: 'Partially Acceptable', teacherRemarks: '' },
+    { id: '4', gradeName: 'C', minPercent: 40, maxPercent: 49.99, gradePoint: 2, minGPoint: 1.61, maxGPoint: 2, description: 'Acceptable', teacherRemarks: '' },
+    { id: '5', gradeName: 'C+', minPercent: 50, maxPercent: 59.99, gradePoint: 2.4, minGPoint: 2.01, maxGPoint: 2.4, description: 'Satisfactory', teacherRemarks: '' },
+    { id: '6', gradeName: 'B', minPercent: 60, maxPercent: 69.99, gradePoint: 2.8, minGPoint: 2.41, maxGPoint: 2.8, description: 'Good', teacherRemarks: '' },
+    { id: '7', gradeName: 'B+', minPercent: 70, maxPercent: 79.99, gradePoint: 3.2, minGPoint: 2.81, maxGPoint: 3.2, description: 'Very Good', teacherRemarks: '' },
+    { id: '8', gradeName: 'A', minPercent: 80, maxPercent: 89.99, gradePoint: 3.6, minGPoint: 3.21, maxGPoint: 3.6, description: 'Excellent', teacherRemarks: '' },
+    { id: '9', gradeName: 'A+', minPercent: 90, maxPercent: 100, gradePoint: 4, minGPoint: 3.61, maxGPoint: 4, description: 'Outstanding', teacherRemarks: '' }
+  ]);
+
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('manage_grade')) setActiveModule('manage_grade');
+  }, [location.pathname]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="w-full">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Exam Center</h1>
-          <p className="text-gray-500">Enter marks, calculate GPA and print Nepali style marksheets.</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">Examination Management</h1>
+          <p className="text-sm lg:text-base text-gray-500">Manage grades, exams, marks and results</p>
         </div>
-        <div className="flex bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-           <button 
-            onClick={() => setView('list')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${view === 'list' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
-           >
-             Reports
-           </button>
-           <button 
-            onClick={() => setView('entry')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${view === 'entry' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
-           >
-             Marks Entry
-           </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button className="flex items-center justify-center gap-2 px-4 lg:px-6 py-2 lg:py-2.5 bg-blue-600 text-white rounded-xl text-xs lg:text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all">
+            <Plus size={18} className="lg:w-[20px] lg:h-[20px]" /> Quick Add
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Sidebar: Class/Subject Selector */}
-        <div className="lg:col-span-1 space-y-6">
-           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Configuration</h3>
-             <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">Academic Year</label>
-                  <select className="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm font-medium">
-                    <option>2080 B.S.</option>
-                    <option>2079 B.S.</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">Term / Exam</label>
-                  <select className="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm font-medium">
-                    <option>First Terminal</option>
-                    <option>Half Yearly</option>
-                    <option>Final Examination</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">Class</label>
-                  <select className="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm font-medium">
-                    <option>Grade 10</option>
-                    <option>Grade 9</option>
-                  </select>
-                </div>
-             </div>
-           </div>
+      <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
+        <div className="animate-in fade-in duration-300 p-4 lg:p-8">
+          {activeModule === 'manage_grade' && (
+            <div>
+              <div className="mb-6 relative pb-4">
+                <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                  Manage Grade
+                </h2>
+                <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+              </div>
 
-           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-             <div className="p-4 bg-gray-50 border-b">
-               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Student List</h3>
-             </div>
-             <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-                {[
-                  { name: 'Aarav Sharma', roll: '01' },
-                  { name: 'Ishani Rai', roll: '02' },
-                  { name: 'Kabir Thapa', roll: '03' },
-                  { name: 'Sita Ram', roll: '04' },
-                ].map((s, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => setSelectedStudent(s)}
-                    className={`w-full text-left p-4 hover:bg-blue-50 transition-colors flex items-center justify-between group ${selectedStudent?.name === s.name ? 'bg-blue-50' : ''}`}
-                  >
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700">{s.name}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase">Roll: {s.roll}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-400" />
-                  </button>
-                ))}
-             </div>
-           </div>
-        </div>
-
-        {/* Right Content Area */}
-        <div className="lg:col-span-3">
-          {selectedStudent ? (
-             <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-                   <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 font-black text-2xl">
-                        {selectedStudent.name[0]}
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">{selectedStudent.name}</h2>
-                        <p className="text-sm text-gray-500">Grade 10 • Roll No: {selectedStudent.roll} • Academic Year 2080</p>
-                      </div>
-                   </div>
-                   <button 
-                    onClick={() => window.print()}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all"
-                   >
-                     <Printer size={18} />
-                     Print Marksheet
-                   </button>
+              <SectionBox>
+                <div className="grid grid-cols-1 border-b">
+                  <div className="flex flex-col lg:flex-row lg:items-center h-auto lg:h-10 bg-white py-2 lg:py-0">
+                    <div className="w-full lg:w-32 bg-gray-50 h-8 lg:h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 lg:border-r mb-1 lg:mb-0">Grade Name:</div>
+                    <div className="flex-1 px-0 lg:px-2"><Input value={gradeForm.gradeName} onChange={(e) => setGradeForm(p => ({ ...p, gradeName: e.target.value }))} placeholder="Enter grade name" /></div>
+                  </div>
                 </div>
+                <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+                  <BlueBtn onClick={() => alert('Add Grade')}>
+                    ADD
+                  </BlueBtn>
+                  <BlueBtn onClick={() => setGradeForm({ gradeName: '' })} color="bg-gray-400">
+                    CANCEL
+                  </BlueBtn>
+                </div>
+              </SectionBox>
 
-                {/* Marksheet Layout (Screen Version) */}
-                <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm" id="marksheet-print">
-                   <div className="text-center mb-10">
-                      <div className="flex items-center justify-center gap-3 mb-2">
-                         <School className="text-blue-600" size={32} />
-                         <h1 className="text-3xl font-black text-gray-800 tracking-tight">EVEREST SECONDARY SCHOOL</h1>
-                      </div>
-                      <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Kathmandu, Nepal • Estd. 1995</p>
-                      <div className="inline-block mt-4 px-8 py-1.5 border-2 border-blue-600 rounded-full">
-                         <h2 className="text-lg font-black text-blue-600 uppercase">Grade Sheet</h2>
-                      </div>
-                   </div>
-
-                   <table className="w-full border-collapse border border-gray-800 text-center text-sm font-medium">
-                      <thead className="bg-gray-50">
-                        <tr>
-                           <th className="border border-gray-800 p-3" rowSpan={2}>SN</th>
-                           <th className="border border-gray-800 p-3" rowSpan={2}>Subject</th>
-                           <th className="border border-gray-800 p-3" colSpan={3}>Obtained Grade</th>
-                           <th className="border border-gray-800 p-3" rowSpan={2}>Grade Point</th>
+              <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden mt-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="bg-white border-b">
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">S.No.</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Edit</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Delete</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Grade Name</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Min %</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Max %</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Grade Point</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Min G point</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Max G point</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Description</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Teacher Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {gradesList.map((grade, idx) => (
+                        <tr key={grade.id} className="hover:bg-blue-50/30 transition-colors group">
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-center text-gray-500 font-bold">{idx + 1}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                            <button className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" title="Edit">
+                              <Edit size={18} />
+                            </button>
+                          </td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                            <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all" title="Delete">
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{grade.gradeName}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.minPercent}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.maxPercent}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.gradePoint}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.minGPoint}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.maxGPoint}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.description}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.teacherRemarks}</td>
                         </tr>
-                        <tr>
-                           <th className="border border-gray-800 p-2">TH</th>
-                           <th className="border border-gray-800 p-2">PR</th>
-                           <th className="border border-gray-800 p-2">Final</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {mockResults.map((r, i) => {
-                          const grade = calculateGrade((r.total / 100) * 100);
-                          return (
-                            <tr key={i}>
-                               <td className="border border-gray-800 p-3">{i+1}</td>
-                               <td className="border border-gray-800 p-3 text-left font-bold">{r.subject}</td>
-                               <td className="border border-gray-800 p-3">{calculateGrade(r.theory).grade}</td>
-                               <td className="border border-gray-800 p-3">{r.practical > 0 ? calculateGrade(r.practical).grade : '-'}</td>
-                               <td className="border border-gray-800 p-3 font-bold">{grade.grade}</td>
-                               <td className="border border-gray-800 p-3">{grade.gpa.toFixed(2)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-gray-50">
-                           <td className="border border-gray-800 p-3 font-black uppercase text-left" colSpan={4}>Grade Point Average (GPA)</td>
-                           <td className="border border-gray-800 p-3 font-black text-xl" colSpan={2}>3.72</td>
-                        </tr>
-                      </tfoot>
-                   </table>
-
-                   <div className="mt-16 flex justify-between px-10">
-                      <div className="text-center">
-                         <div className="w-40 border-b border-gray-900 mb-2"></div>
-                         <p className="text-xs font-bold uppercase">Class Teacher</p>
-                      </div>
-                      <div className="text-center">
-                         <div className="w-40 border-b border-gray-900 mb-2"></div>
-                         <p className="text-xs font-bold uppercase">Principal</p>
-                      </div>
-                   </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-             </div>
-          ) : (
-            <div className="h-[600px] flex flex-col items-center justify-center bg-white rounded-3xl border border-dashed border-gray-200 text-gray-400">
-               <ClipboardCheck size={64} className="mb-4 opacity-10" />
-               <p className="font-bold text-lg">Select a student from the list</p>
-               <p className="text-sm">View or manage their academic performance records</p>
+              </div>
             </div>
           )}
         </div>

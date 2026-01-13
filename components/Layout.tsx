@@ -65,10 +65,45 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             { name: 'Fine', path: '/fees/fine', icon: Percent }
           ]
         },
-        { name: 'Student Fee Submit', path: '/fees/submit', icon: Receipt }
+        { 
+          name: 'Fee Details', 
+          icon: Receipt,
+          subItems: [
+            { name: 'Due Student Fee', path: '/fees/due_student_fee', icon: Users },
+            { name: 'Student Fee Submit', path: '/fees/student_fee_submit', icon: CreditCard },
+            { name: 'View Student Fee Details', path: '/fees/view_student_fee_details', icon: BookOpen },
+            { name: 'Daily Fee Receipt Register', path: '/fees/daily_fee_receipt_register', icon: Receipt }
+          ]
+        }
       ]
     },
-    { name: 'Exams & Result', path: '/exams', icon: GraduationCap, roles: ['Super Admin', 'Admin', 'Teacher', 'Student'] },
+    { 
+      name: 'Exams & Result', 
+      path: '/exams', 
+      icon: GraduationCap, 
+      roles: ['Super Admin', 'Admin', 'Teacher', 'Student'],
+      subItems: [
+        { name: 'Manage Grade', path: '/exams/manage_grade', icon: Tag },
+        { name: 'Personal Description', path: '/exams/personal_description', icon: BookOpen },
+        { name: 'Show in Result', path: '/exams/show_in_result', icon: Settings },
+        { name: 'Assign Subject to Teachers', path: '/exams/assign_subject_teachers', icon: Users },
+        { name: 'Exam Type', path: '/exams/exam_type', icon: Tag },
+        { name: 'Exam Name', path: '/exams/exam_name', icon: BookOpen },
+        { name: 'Add Exam Marks', path: '/exams/add_exam_marks', icon: Percent },
+        { name: 'Print Admit Card', path: '/exams/print_admit_card', icon: CreditCard },
+        { name: 'Add Students Marks', path: '/exams/add_students_marks', icon: Percent },
+        { name: 'Add Personal Description', path: '/exams/add_personal_description', icon: BookOpen },
+        { name: 'Add Personal Description Teachers', path: '/exams/add_personal_description_teachers', icon: Users },
+        { name: 'Add Working/Present Days', path: '/exams/add_working_present_days', icon: Calendar },
+        { name: 'View Students Marks', path: '/exams/view_students_marks', icon: BookOpen },
+        { name: 'Term Exam Name', path: '/exams/term_exam_name', icon: Tag },
+        { name: 'View Students Term Marks', path: '/exams/view_students_term_marks', icon: BookOpen },
+        { name: 'View Students Annual Marks', path: '/exams/view_students_annual_marks', icon: BookOpen },
+        { name: 'Send Result via SMS', path: '/exams/send_result_sms', icon: Settings },
+        { name: 'Publish Students Results', path: '/exams/publish_students_results', icon: Settings },
+        { name: 'Publish Annual Results', path: '/exams/publish_annual_results', icon: Settings }
+      ]
+    },
     { name: 'Admin Control', path: '/admin', icon: Settings, roles: ['Super Admin'] },
   ];
 
