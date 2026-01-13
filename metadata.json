@@ -1,0 +1,7 @@
+{
+  "name": "Everest School ERP",
+  "description": "A comprehensive School Management System with Google Sheets backend, featuring Student Management, Fee Billing (Nepali Invoice), and Exam Marks Entry (SEE Grading).",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
