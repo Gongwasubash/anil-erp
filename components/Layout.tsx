@@ -18,7 +18,13 @@ import {
   Tag,
   Percent,
   CreditCard,
-  Cog
+  Cog,
+  Building,
+  UserCheck,
+  Globe,
+  Heart,
+  Briefcase,
+  Award
 } from 'lucide-react';
 import { User } from '../types';
 import { COLORS } from '../constants';
@@ -31,7 +37,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['fees&billing', 'feemaster']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['fees&billing', 'feemaster', 'masters']);
   const location = useLocation();
 
   const menuItems = [
@@ -102,6 +108,31 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         { name: 'Send Result via SMS', path: '/exams/send_result_sms', icon: Settings },
         { name: 'Publish Students Results', path: '/exams/publish_students_results', icon: Settings },
         { name: 'Publish Annual Results', path: '/exams/publish_annual_results', icon: Settings }
+      ]
+    },
+    { 
+      name: 'Masters', 
+      path: '/masters', 
+      icon: Settings, 
+      roles: ['Super Admin', 'Admin'],
+      subItems: [
+        { name: 'Manage Branch', path: '/masters/manage_branch', icon: Building },
+        { name: 'Manage School', path: '/masters/manage_school', icon: School },
+        { name: 'Add Batch', path: '/masters/add_batch', icon: Tag },
+        { name: 'Add Class', path: '/masters/add_class', icon: BookOpen },
+        { name: 'Add Section', path: '/masters/add_section', icon: Tag },
+        { name: 'Manage Class', path: '/masters/manage_class', icon: BookOpen },
+        { name: 'Manage Section', path: '/masters/manage_section', icon: Tag },
+        { name: 'Manage Religion', path: '/masters/manage_religion', icon: Heart },
+        { name: 'Manage Nationality', path: '/masters/manage_nationality', icon: Globe },
+        { name: 'Manage Student Cast', path: '/masters/manage_student_cast', icon: Users },
+        { name: 'Subject Masters', path: '/masters/subject_masters', icon: BookOpen },
+        { name: 'Manage Calendar', path: '/masters/manage_calendar', icon: Calendar },
+        { name: 'Manage SMS Template', path: '/masters/manage_sms_template', icon: Settings },
+        { name: 'Manage Blood Group', path: '/masters/manage_blood_group', icon: Heart },
+        { name: 'Manage Department', path: '/masters/manage_department', icon: Briefcase },
+        { name: 'Manage Designation', path: '/masters/manage_designation', icon: Award },
+        { name: 'Class/Subjects Teacher', path: '/masters/class_subjects_teacher', icon: UserCheck }
       ]
     },
     { name: 'Admin Control', path: '/admin', icon: Settings, roles: ['Super Admin'] },

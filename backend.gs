@@ -131,6 +131,8 @@ function getOrCreateSheet(SS, name, headers = ['id']) {
     sheet = spreadsheet.insertSheet(name);
     if (name === 'fee_structure_details') {
       headers = ['id', 'school', 'branch', 'batch', 'class', 'monthName', 'applyDDCharges', 'feeHeadId', 'feeHead', 'general', 'twentyFivePercent', 'fiftyPercent', 'outOfThree'];
+    } else if (name === 'sections') {
+      headers = ['id', 'section_name', 'short_name', 'created_at'];
     }
     sheet.appendRow(headers);
     sheet.setFrozenRows(1);
