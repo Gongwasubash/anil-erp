@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Edit, Trash2, Plus, Search } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, ChevronDown, BookOpen, Settings, Users } from 'lucide-react';
 import { User, School } from '../types';
 import { supabaseService } from '../lib/supabase';
 
@@ -74,6 +74,37 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [editingBatchClass, setEditingBatchClass] = useState<any>(null);
   const [showEditBatchClass, setShowEditBatchClass] = useState(false);
+  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
+  const [activeSubjectModule, setActiveSubjectModule] = useState('add_subject');
+  const [editingSubject, setEditingSubject] = useState<any>(null);
+  const [showEditSubject, setShowEditSubject] = useState(false);
+  const [subjectFormData, setSubjectFormData] = useState({
+    subjectCode: '',
+    subjectName: '',
+    sortName: '',
+    orderNo: 1
+  });
+  const [subjects, setSubjects] = useState([]);
+  const [subjectAssignments, setSubjectAssignments] = useState([]);
+  const [filteredAssignments, setFilteredAssignments] = useState([]);
+  const [selectedSchool, setSelectedSchool] = useState('');
+  const [selectedAssignmentBatch, setSelectedAssignmentBatch] = useState('');
+  const [selectedAssignmentClass, setSelectedAssignmentClass] = useState('');
+  const [selectedAssignmentSections, setSelectedAssignmentSections] = useState<string[]>([]);
+  const [selectedAssignmentSubjects, setSelectedAssignmentSubjects] = useState<string[]>([]);
+  const [editingAssignment, setEditingAssignment] = useState<any>(null);
+  const [showEditAssignment, setShowEditAssignment] = useState(false);
+  const [selectedStudentSchool, setSelectedStudentSchool] = useState('');
+  const [selectedStudentBatch, setSelectedStudentBatch] = useState('');
+  const [selectedStudentClass, setSelectedStudentClass] = useState('');
+  const [selectedStudentSection, setSelectedStudentSection] = useState('');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [selectedStudentSubject, setSelectedStudentSubject] = useState('');
+  const [studentSubjectResults, setStudentSubjectResults] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [existingAssignments, setExistingAssignments] = useState([]);
   const [schoolFormData, setSchoolFormData] = useState({
     schoolName: '',
     director: '',
@@ -98,6 +129,10 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     loadSections();
     loadBatchClasses();
     loadManageSections();
+    loadSubjects();
+    loadSubjectAssignments();
+    loadStudents();
+    console.log('Loading master data...');
   }, []);
 
   const loadBranches = async () => {
@@ -156,11 +191,383 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleClassToggle = (classId: string) => {
+    const stringClassId = String(classId);
     setSelectedClasses(prev => 
-      prev.includes(classId) 
-        ? prev.filter(id => id !== classId)
-        : [...prev, classId]
+      prev.includes(stringClassId) 
+        ? prev.filter(id => id !== stringClassId)
+        : [...prev, stringClassId]
     );
+  };
+
+  const handleEditSubject = (subject: any) => {
+    setEditingSubject(subject);
+    setSubjectFormData({
+      subjectCode: subject.subject_code || subject.subjectCode,
+      subjectName: subject.subject_name || subject.subjectName,
+      sortName: subject.sort_name || subject.sortName,
+      orderNo: subject.order_no || subject.orderNo
+    });
+    // Ensure class_ids are converted to strings for proper comparison
+    const classIds = subject.class_ids || subject.classIds || [];
+    const stringClassIds = classIds.map((id: any) => String(id));
+    setSelectedClasses(stringClassIds);
+    setShowEditSubject(true);
+  };
+
+  const loadSubjects = async () => {
+    const { data, error } = await supabaseService.getSubjects();
+    if (error) {
+      console.error('Error loading subjects:', error);
+    } else {
+      setSubjects(data || []);
+    }
+  };
+
+  const handleCreateSubject = async () => {
+    setLoading(true);
+    const subjectData = {
+      subject_code: subjectFormData.subjectCode,
+      subject_name: subjectFormData.subjectName,
+      sort_name: subjectFormData.sortName,
+      order_no: subjectFormData.orderNo,
+      class_ids: selectedClasses
+    };
+    
+    const { data, error } = await supabaseService.createSubject(subjectData);
+    
+    if (error) {
+      console.error('Error creating subject:', error);
+      alert(`Error creating subject: ${error.message}`);
+    } else {
+      alert('Subject created successfully!');
+      setSubjectFormData({ subjectCode: '', subjectName: '', sortName: '', orderNo: 1 });
+      setSelectedClasses([]);
+      loadSubjects();
+    }
+    setLoading(false);
+  };
+
+  const handleUpdateSubject = async () => {
+    if (!editingSubject) return;
+    
+    setLoading(true);
+    const subjectData = {
+      subject_code: subjectFormData.subjectCode,
+      subject_name: subjectFormData.subjectName,
+      sort_name: subjectFormData.sortName,
+      order_no: subjectFormData.orderNo,
+      class_ids: selectedClasses
+    };
+    
+    const { data, error } = await supabaseService.updateSubject(editingSubject.id, subjectData);
+    
+    if (error) {
+      console.error('Error updating subject:', error);
+      alert(`Error updating subject: ${error.message}`);
+    } else {
+      alert('Subject updated successfully!');
+      setShowEditSubject(false);
+      setEditingSubject(null);
+      setSubjectFormData({ subjectCode: '', subjectName: '', sortName: '', orderNo: 1 });
+      setSelectedClasses([]);
+      loadSubjects();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteSubject = async (subject: any) => {
+    if (window.confirm(`Are you sure you want to delete "${subject.subject_name || subject.subjectName}"?`)) {
+      setLoading(true);
+      const { error } = await supabaseService.deleteSubject(subject.id);
+      
+      if (error) {
+        console.error('Error deleting subject:', error);
+        alert(`Error deleting subject: ${error.message}`);
+      } else {
+        alert('Subject deleted successfully!');
+        loadSubjects();
+      }
+      setLoading(false);
+    }
+  };
+
+  const loadSubjectAssignments = async () => {
+    const { data, error } = await supabaseService.getSubjectAssignments();
+    if (error) {
+      console.error('Error loading subject assignments:', error);
+    } else {
+      setSubjectAssignments(data || []);
+      setFilteredAssignments(data || []);
+    }
+  };
+
+  const handleAssignmentSectionToggle = (sectionId: string) => {
+    setSelectedAssignmentSections(prev => 
+      prev.includes(sectionId) 
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
+
+  const handleAssignmentSubjectToggle = (subjectId: string) => {
+    const stringSubjectId = String(subjectId);
+    setSelectedAssignmentSubjects(prev => 
+      prev.includes(stringSubjectId) 
+        ? prev.filter(id => id !== stringSubjectId)
+        : [...prev, stringSubjectId]
+    );
+  };
+
+  const handleCreateSubjectAssignment = async () => {
+    if (!selectedSchool || !selectedAssignmentBatch || !selectedAssignmentClass || selectedAssignmentSections.length === 0 || selectedAssignmentSubjects.length === 0) {
+      alert('Please select school, batch, class, section and subjects');
+      return;
+    }
+    
+    setLoading(true);
+    
+    const assignmentData = {
+      school_id: String(selectedSchool),
+      batch_id: String(selectedAssignmentBatch),
+      class_id: String(selectedAssignmentClass),
+      section_id: String(selectedAssignmentSections[0]),
+      subject_ids: selectedAssignmentSubjects.map(id => String(id))
+    };
+    
+    const { data, error } = await supabaseService.createSubjectAssignment(assignmentData);
+    
+    if (error) {
+      console.error('Error creating subject assignment:', error);
+      alert(`Error creating subject assignment: ${error.message}`);
+    } else {
+      alert('Subject assignment created successfully!');
+      setSelectedSchool('');
+      setSelectedAssignmentBatch('');
+      setSelectedAssignmentClass('');
+      setSelectedAssignmentSections([]);
+      setSelectedAssignmentSubjects([]);
+      loadSubjectAssignments();
+    }
+    setLoading(false);
+  };
+
+  const handleEditAssignment = (assignment: any) => {
+    setEditingAssignment(assignment);
+    setSelectedSchool(assignment.school_id);
+    setSelectedAssignmentBatch(assignment.batch_id);
+    setSelectedAssignmentClass(assignment.class_id);
+    setSelectedAssignmentSections([assignment.section_id]);
+    setSelectedAssignmentSubjects(assignment.subject_ids || []);
+    setShowEditAssignment(true);
+  };
+
+  const handleUpdateAssignment = async () => {
+    if (!editingAssignment || !selectedSchool || !selectedAssignmentBatch || !selectedAssignmentClass || selectedAssignmentSections.length === 0 || selectedAssignmentSubjects.length === 0) {
+      alert('Please select school, batch, class, section and subjects');
+      return;
+    }
+    
+    setLoading(true);
+    
+    const assignmentData = {
+      school_id: String(selectedSchool),
+      batch_id: String(selectedAssignmentBatch),
+      class_id: String(selectedAssignmentClass),
+      section_id: String(selectedAssignmentSections[0]),
+      subject_ids: selectedAssignmentSubjects.map(id => String(id))
+    };
+    
+    const { data, error } = await supabaseService.updateSubjectAssignment(editingAssignment.id, assignmentData);
+    
+    if (error) {
+      console.error('Error updating subject assignment:', error);
+      alert(`Error updating subject assignment: ${error.message}`);
+    } else {
+      alert('Subject assignment updated successfully!');
+      setShowEditAssignment(false);
+      setEditingAssignment(null);
+      setSelectedSchool('');
+      setSelectedAssignmentBatch('');
+      setSelectedAssignmentClass('');
+      setSelectedAssignmentSections([]);
+      setSelectedAssignmentSubjects([]);
+      loadSubjectAssignments();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteAssignment = async (assignment: any) => {
+    if (window.confirm('Are you sure you want to delete this assignment?')) {
+      setLoading(true);
+      const { error } = await supabaseService.deleteSubjectAssignment(assignment.id);
+      
+      if (error) {
+        console.error('Error deleting subject assignment:', error);
+        alert(`Error deleting subject assignment: ${error.message}`);
+      } else {
+        alert('Subject assignment deleted successfully!');
+        loadSubjectAssignments();
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleSearchAssignments = () => {
+    let filtered = [...subjectAssignments];
+    
+    if (selectedSchool) {
+      filtered = filtered.filter(a => String(a.school_id) === String(selectedSchool));
+    }
+    if (selectedAssignmentBatch) {
+      filtered = filtered.filter(a => String(a.batch_id) === String(selectedAssignmentBatch));
+    }
+    if (selectedAssignmentClass) {
+      filtered = filtered.filter(a => String(a.class_id) === String(selectedAssignmentClass));
+    }
+    if (selectedAssignmentSections.length > 0) {
+      filtered = filtered.filter(a => String(a.section_id) === String(selectedAssignmentSections[0]));
+    }
+    
+    setFilteredAssignments(filtered);
+  };
+
+  const handleSearchStudentSubjects = async () => {
+    console.log('Search filters:', { selectedStudentSchool, selectedStudentBatch, selectedStudentClass, selectedStudentSection });
+    console.log('All students:', students);
+    
+    let filtered = [...students];
+    
+    // If no filters selected, show all students
+    if (!selectedStudentSchool && !selectedStudentBatch && !selectedStudentClass && !selectedStudentSection) {
+      setStudentSubjectResults(filtered);
+      return;
+    }
+    
+    if (selectedStudentSchool) {
+      const schoolName = schools.find(s => String(s.id) === String(selectedStudentSchool))?.school_name;
+      filtered = filtered.filter(s => {
+        const studentSchool = s.school_id || s.schoolId || s.school || '';
+        const match = String(studentSchool) === String(selectedStudentSchool) || 
+                     String(studentSchool) === schoolName;
+        console.log('School filter:', studentSchool, 'vs', selectedStudentSchool, 'or', schoolName, 'match:', match);
+        return match;
+      });
+    }
+    
+    if (selectedStudentBatch) {
+      const batchName = batches.find(b => String(b.id) === String(selectedStudentBatch))?.batch_no;
+      filtered = filtered.filter(s => {
+        const studentBatch = s.batch_id || s.batchId || s.batch_no || s.batchNo || s.batch || '';
+        const match = String(studentBatch) === String(selectedStudentBatch) || 
+                     String(studentBatch) === batchName;
+        console.log('Batch filter:', studentBatch, 'vs', selectedStudentBatch, 'or', batchName, 'match:', match);
+        return match;
+      });
+    }
+    
+    if (selectedStudentClass) {
+      const className = classes.find(c => String(c.id) === String(selectedStudentClass))?.class_name;
+      filtered = filtered.filter(s => {
+        const studentClass = s.class_id || s.classId || s.class || '';
+        const match = String(studentClass) === String(selectedStudentClass) || 
+                     String(studentClass) === className;
+        console.log('Class filter:', studentClass, 'vs', selectedStudentClass, 'or', className, 'match:', match);
+        return match;
+      });
+    }
+    
+    if (selectedStudentSection) {
+      const sectionName = sections.find(s => String(s.id) === String(selectedStudentSection))?.section_name;
+      filtered = filtered.filter(s => {
+        const studentSection = s.section_id || s.sectionId || s.section || '';
+        const match = String(studentSection) === String(selectedStudentSection) || 
+                     String(studentSection) === sectionName;
+        console.log('Section filter:', studentSection, 'vs', selectedStudentSection, 'or', sectionName, 'match:', match);
+        return match;
+      });
+    }
+    
+    console.log('Filtered results:', filtered);
+    setStudentSubjectResults(filtered);
+    
+    // Load existing assignments for the selected subject
+    if (selectedStudentSubject) {
+      console.log('Loading assignments for subject:', selectedStudentSubject);
+      const { data, error } = await supabaseService.getStudentSubjectAssignmentsBySubject(selectedStudentSubject);
+      console.log('Existing assignments:', data, error);
+      if (!error && data) {
+        setExistingAssignments(data);
+        // Auto-select students who already have this subject assigned
+        const assignedStudentIds = data.map(a => a.student_id);
+        console.log('Auto-selecting students:', assignedStudentIds);
+        setSelectedStudents(assignedStudentIds);
+      } else {
+        setExistingAssignments([]);
+      }
+    }
+  };
+
+  const handleSubmitStudentSubjects = async () => {
+    if (!selectedStudentSubject) {
+      alert('Please select a subject');
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    try {
+      // Get current assignments for this subject
+      const { data: currentAssignments } = await supabaseService.getStudentSubjectAssignmentsBySubject(selectedStudentSubject);
+      const currentStudentIds = currentAssignments?.map(a => a.student_id) || [];
+      
+      // Find students to add and remove
+      const studentsToAdd = selectedStudents.filter(id => !currentStudentIds.includes(id));
+      const studentsToRemove = currentStudentIds.filter(id => !selectedStudents.includes(id));
+      
+      // Remove unselected assignments
+      for (const studentId of studentsToRemove) {
+        await supabaseService.deleteStudentSubjectAssignments(studentId, selectedStudentSubject);
+      }
+      
+      // Add new assignments
+      if (studentsToAdd.length > 0) {
+        const assignmentData = studentsToAdd.map(studentId => ({
+          student_id: String(studentId),
+          subject_id: String(selectedStudentSubject),
+          school_id: String(selectedStudentSchool || ''),
+          batch_id: String(selectedStudentBatch || ''),
+          class_id: String(selectedStudentClass || ''),
+          section_id: String(selectedStudentSection || '')
+        }));
+        
+        await supabaseService.createStudentSubjectAssignments(assignmentData);
+      }
+      
+      alert(`Successfully updated assignments! Added: ${studentsToAdd.length}, Removed: ${studentsToRemove.length}`);
+      
+      // Refresh the assignments
+      handleSearchStudentSubjects();
+      
+    } catch (error: any) {
+      console.error('Error updating student subjects:', error);
+      alert(`Error: ${error.message}`);
+    }
+    
+    setSubmitting(false);
+  };
+
+  const loadStudents = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase.from('students').select('*');
+      if (error) {
+        console.error('Error loading students:', error);
+      } else {
+        setStudents(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading students:', error);
+      setStudents([]);
+    }
   };
 
   const handleAddBatchClasses = async () => {
@@ -521,6 +928,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     if (error) {
       console.error('Error loading schools:', error);
     } else {
+      console.log('Schools loaded:', data);
       setSchools(data || []);
     }
   };
@@ -843,6 +1251,9 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     if (path.includes('manage_religion')) return 'manage_religion';
     if (path.includes('manage_nationality')) return 'manage_nationality';
     if (path.includes('manage_student_cast')) return 'manage_student_cast';
+    if (path.includes('add_subject')) return 'add_subject';
+    if (path.includes('manage_subject_to_student')) return 'manage_subject_to_student';
+    if (path.includes('manage_subject')) return 'manage_subject';
     if (path.includes('subject_masters')) return 'subject_masters';
     if (path.includes('manage_calendar')) return 'manage_calendar';
     if (path.includes('manage_sms_template')) return 'manage_sms_template';
@@ -865,6 +1276,9 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     else if (path.includes('manage_religion')) setActiveModule('manage_religion');
     else if (path.includes('manage_nationality')) setActiveModule('manage_nationality');
     else if (path.includes('manage_student_cast')) setActiveModule('manage_student_cast');
+    else if (path.includes('add_subject')) setActiveModule('add_subject');
+    else if (path.includes('manage_subject_to_student')) setActiveModule('manage_subject_to_student');
+    else if (path.includes('manage_subject')) setActiveModule('manage_subject');
     else if (path.includes('subject_masters')) setActiveModule('subject_masters');
     else if (path.includes('manage_calendar')) setActiveModule('manage_calendar');
     else if (path.includes('manage_sms_template')) setActiveModule('manage_sms_template');
@@ -2059,6 +2473,536 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                 </table>
               </div>
             </div>
+          </div>
+        );
+      case 'subject_masters':
+        return (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Subject Masters
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search subjects..."
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+
+
+      case 'add_subject':
+        return (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Add Subject
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-700 mb-4">Select Classes:</h3>
+                <div className="grid grid-cols-6 gap-2">
+                  {classes.map((classItem: any) => (
+                    <label key={classItem.id} className="relative flex items-center justify-center p-3 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedClasses.includes(String(classItem.id))}
+                        onChange={() => handleClassToggle(classItem.id)}
+                        className="absolute top-2 right-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                      />
+                      <span className="font-bold text-gray-700">{classItem.class_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">Subject Code:</label>
+                  <input 
+                    value={subjectFormData.subjectCode}
+                    onChange={(e) => setSubjectFormData(prev => ({ ...prev, subjectCode: e.target.value }))}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    placeholder="Subject Code"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">Subject Name:</label>
+                  <input 
+                    value={subjectFormData.subjectName}
+                    onChange={(e) => setSubjectFormData(prev => ({ ...prev, subjectName: e.target.value }))}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    placeholder="Subject Name"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">Sort Name:</label>
+                  <input 
+                    value={subjectFormData.sortName}
+                    onChange={(e) => setSubjectFormData(prev => ({ ...prev, sortName: e.target.value }))}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    placeholder="Sort Name"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">Order No:</label>
+                  <input 
+                    type="number"
+                    value={subjectFormData.orderNo}
+                    onChange={(e) => setSubjectFormData(prev => ({ ...prev, orderNo: parseInt(e.target.value) || 1 }))}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button 
+                  onClick={showEditSubject ? handleUpdateSubject : handleCreateSubject}
+                  disabled={loading}
+                  className="bg-[#3498db] text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all disabled:opacity-50"
+                >
+                  {loading ? (showEditSubject ? 'UPDATING...' : 'ADDING...') : (showEditSubject ? 'UPDATE' : 'ADD')}
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowEditSubject(false);
+                    setEditingSubject(null);
+                    setSubjectFormData({ subjectCode: '', subjectName: '', sortName: '', orderNo: 1 });
+                    setSelectedClasses([]);
+                  }}
+                  className="bg-gray-400 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white border-b">
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject Code</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject Name</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sort Name</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Order No</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Edit</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {subjects.map((subject) => (
+                      <tr key={subject.id} className="hover:bg-blue-50/30 transition-colors group">
+                        <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{subject.subject_code || subject.subjectCode}</td>
+                        <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{subject.subject_name || subject.subjectName}</td>
+                        <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{subject.sort_name || subject.sortName}</td>
+                        <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{subject.order_no || subject.orderNo}</td>
+                        <td className="px-4 lg:px-8 py-3 lg:py-5">
+                          <button 
+                            onClick={() => handleEditSubject(subject)}
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" 
+                            title="Edit"
+                          >
+                            <Edit size={18} />
+                          </button>
+                        </td>
+                        <td className="px-4 lg:px-8 py-3 lg:py-5">
+                          <button 
+                            onClick={() => handleDeleteSubject(subject)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all" 
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      case 'manage_subject':
+        return (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Manage Subject
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">School:</label>
+                  <select 
+                    value={selectedSchool}
+                    onChange={(e) => setSelectedSchool(e.target.value)}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  >
+                    <option value="">--- Select School ---</option>
+                    {schools.map((school: any) => (
+                      <option key={school.id} value={school.id}>{school.school_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">BatchNo:</label>
+                  <select 
+                    value={selectedAssignmentBatch}
+                    onChange={(e) => setSelectedAssignmentBatch(e.target.value)}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  >
+                    <option value="">--- Select Batch ---</option>
+                    {batches.map((batch: any) => (
+                      <option key={batch.id} value={batch.id}>{batch.batch_no}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">Class:</label>
+                  <select 
+                    value={selectedAssignmentClass}
+                    onChange={(e) => setSelectedAssignmentClass(e.target.value)}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  >
+                    <option value="">--- Select Class ---</option>
+                    {classes.map((classItem: any) => (
+                      <option key={classItem.id} value={classItem.id}>{classItem.class_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-700 mb-2">Section:</label>
+                  <select 
+                    value={selectedAssignmentSections[0] || ''}
+                    onChange={(e) => setSelectedAssignmentSections(e.target.value ? [e.target.value] : [])}
+                    className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  >
+                    <option value="">--- Select Section ---</option>
+                    {sections.map((section: any) => (
+                      <option key={section.id} value={section.id}>{section.section_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-700 mb-4">Select Subjects:</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  {subjects.map((subject: any) => (
+                    <label key={subject.id} className="flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedAssignmentSubjects.includes(String(subject.id))}
+                        onChange={() => handleAssignmentSubjectToggle(subject.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                      />
+                      <span className="text-sm font-medium">{subject.subject_code} {subject.subject_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={showEditAssignment ? handleUpdateAssignment : handleCreateSubjectAssignment}
+                  disabled={loading}
+                  className="bg-[#3498db] text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all disabled:opacity-50"
+                >
+                  {loading ? (showEditAssignment ? 'UPDATING...' : 'ADDING...') : (showEditAssignment ? 'UPDATE' : 'ADD')}
+                </button>
+                <button 
+                  onClick={handleSearchAssignments}
+                  className="bg-green-600 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all"
+                >
+                  SEARCH
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowEditAssignment(false);
+                    setEditingAssignment(null);
+                    setSelectedSchool('');
+                    setSelectedAssignmentBatch('');
+                    setSelectedAssignmentClass('');
+                    setSelectedAssignmentSections([]);
+                    setSelectedAssignmentSubjects([]);
+                    setFilteredAssignments(subjectAssignments);
+                  }}
+                  className="bg-gray-400 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white border-b">
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sr.No.</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">School</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Class</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Section</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subjects</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Edit</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredAssignments.map((assignment: any, index: number) => {
+                      const school = schools.find((s: any) => String(s.id) === String(assignment.school_id));
+                      const batch = batches.find((b: any) => String(b.id) === String(assignment.batch_id));
+                      const classItem = classes.find((c: any) => String(c.id) === String(assignment.class_id));
+                      const assignedSection = sections.find((s: any) => String(s.id) === String(assignment.section_id));
+                      const assignedSubjects = subjects.filter((s: any) => assignment.subject_ids?.includes(String(s.id)));
+                      
+                      return (
+                        <tr key={assignment.id} className="hover:bg-blue-50/30 transition-colors group">
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-center text-gray-500 font-bold">{index + 1}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{school?.school_name || 'N/A'}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{classItem?.class_name || 'N/A'}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{assignedSection?.section_name || 'N/A'}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{assignedSubjects.map(s => s.subject_name).join(',') || 'N/A'}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                            <button 
+                              onClick={() => handleEditAssignment(assignment)}
+                              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" 
+                              title="Edit"
+                            >
+                              <Edit size={18} />
+                            </button>
+                          </td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                            <button 
+                              onClick={() => handleDeleteAssignment(assignment)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all" 
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      case 'manage_subject_to_student':
+        return (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Manage Subject to Student
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Search Students</h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase ml-1">School</label>
+                  <select 
+                    value={selectedStudentSchool}
+                    onChange={(e) => setSelectedStudentSchool(e.target.value)}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm font-medium bg-gray-50 border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  >
+                    <option value="">Select School</option>
+                    {schools.map((school: any) => (
+                      <option key={school.id} value={school.id}>{school.school_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase ml-1">Batch</label>
+                  <select 
+                    value={selectedStudentBatch}
+                    onChange={(e) => setSelectedStudentBatch(e.target.value)}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm font-medium bg-gray-50 border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  >
+                    <option value="">Select Batch</option>
+                    {batches.map((batch: any) => (
+                      <option key={batch.id} value={batch.id}>{batch.batch_no}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase ml-1">Class</label>
+                  <select 
+                    value={selectedStudentClass}
+                    onChange={(e) => setSelectedStudentClass(e.target.value)}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm font-medium bg-gray-50 border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  >
+                    <option value="">Select Class</option>
+                    {classes.map((classItem: any) => (
+                      <option key={classItem.id} value={classItem.id}>{classItem.class_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase ml-1">Section</label>
+                  <select 
+                    value={selectedStudentSection}
+                    onChange={(e) => setSelectedStudentSection(e.target.value)}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm font-medium bg-gray-50 border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  >
+                    <option value="">Select Section</option>
+                    {sections.map((section: any) => (
+                      <option key={section.id} value={section.id}>{section.section_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase ml-1">Subject</label>
+                  <select 
+                    value={selectedStudentSubject}
+                    onChange={(e) => setSelectedStudentSubject(e.target.value)}
+                    className="w-full px-4 py-2.5 border rounded-xl text-sm font-medium bg-gray-50 border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                  >
+                    <option value="">Select Subject</option>
+                    {subjects.map((subject: any) => (
+                      <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex gap-4 mt-6">
+                <button 
+                  onClick={handleSearchStudentSubjects}
+                  className="bg-[#3498db] text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all"
+                >
+                  SEARCH
+                </button>
+                <button 
+                  onClick={() => {
+                    setSelectedStudentSchool('');
+                    setSelectedStudentBatch('');
+                    setSelectedStudentClass('');
+                    setSelectedStudentSection('');
+                    setStudentSubjectResults([]);
+                  }}
+                  className="bg-gray-400 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all"
+                >
+                  CANCEL
+                </button>
+                {/* Debug info */}
+                <div className="text-xs text-gray-500">
+                  Students: {selectedStudents.length}, Subject: {selectedStudentSubject ? 'Selected' : 'None'}
+                </div>
+              </div>
+            </div>
+
+            {(studentSubjectResults.length >= 0 && (selectedStudentSchool || selectedStudentBatch || selectedStudentClass || selectedStudentSection)) && (
+              <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-white border-b">
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          <input 
+                            type="checkbox" 
+                            checked={selectAll}
+                            onChange={(e) => {
+                              setSelectAll(e.target.checked);
+                              if (e.target.checked) {
+                                setSelectedStudents(studentSubjectResults.map(s => s.id));
+                              } else {
+                                setSelectedStudents([]);
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                          />
+                          All
+                        </th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Roll No</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Batch</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Class</th>
+                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Section</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {studentSubjectResults.length > 0 ? studentSubjectResults.map((student: any, index: number) => {
+                        const batch = batches.find((b: any) => String(b.id) === String(student.batch_id || student.batchId)) || 
+                                     batches.find((b: any) => b.batch_no === (student.batch_no || student.batchNo || student.batch));
+                        const classItem = classes.find((c: any) => String(c.id) === String(student.class_id || student.classId)) || 
+                                         classes.find((c: any) => c.class_name === (student.class || student.className));
+                        const section = sections.find((s: any) => String(s.id) === String(student.section_id || student.sectionId)) || 
+                                       sections.find((s: any) => s.section_name === (student.section || student.sectionName));
+                        
+                        return (
+                          <tr key={student.id} className="hover:bg-blue-50/30 transition-colors group">
+                            <td className="px-4 lg:px-8 py-3 lg:py-5">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedStudents.includes(student.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedStudents(prev => [...prev, student.id]);
+                                  } else {
+                                    setSelectedStudents(prev => prev.filter(id => id !== student.id));
+                                    setSelectAll(false);
+                                  }
+                                }}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                              />
+                              {existingAssignments.some(a => String(a.student_id) === String(student.id)) && (
+                                <span className="ml-2 text-green-600 text-xs font-bold">✓ Assigned</span>
+                              )}
+                            </td>
+                            <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{student.roll_no || student.rollNo || 'N/A'}</td>
+                            <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{`${student.first_name || student.firstName || ''} ${student.last_name || student.lastName || ''}`.trim() || 'N/A'}</td>
+                            <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{batch?.batch_no || student.batch_no || student.batchNo || student.batch || 'N/A'}</td>
+                            <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{classItem?.class_name || student.class || student.className || 'N/A'}</td>
+                            <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{section?.section_name || student.section || student.sectionName || 'N/A'}</td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr>
+                          <td colSpan={6} className="px-4 lg:px-8 py-8 text-center text-gray-500">
+                            No students found matching the search criteria
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {selectedStudentSubject && (
+              <div className="mt-6 flex justify-center">
+                <button 
+                  onClick={handleSubmitStudentSubjects}
+                  disabled={submitting}
+                  className="bg-green-600 text-white px-8 py-3 rounded-lg text-sm font-bold uppercase hover:opacity-90 transition-all disabled:opacity-50 shadow-lg"
+                >
+                  {submitting ? 'UPDATING...' : 'UPDATE ASSIGNMENTS'}
+                </button>
+              </div>
+            )}
           </div>
         );
       default:

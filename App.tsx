@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import Fees from './pages/Fees';
 import Exams from './pages/Exams';
+import AddStudentMarks from './pages/AddStudentMarks';
 import Masters from './pages/Masters';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
@@ -47,6 +48,7 @@ const App: React.FC = () => {
           <Route path="/students/*" element={<Students user={user} />} />
           <Route path="/fees/*" element={<Fees user={user} />} />
           <Route path="/exams/*" element={<Exams user={user} />} />
+          <Route path="/add-student-marks" element={<AddStudentMarks />} />
           <Route path="/masters/*" element={<Masters user={user} />} />
           <Route path="/admin/*" element={<Admin user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

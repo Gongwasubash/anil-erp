@@ -126,7 +126,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         { name: 'Manage Religion', path: '/masters/manage_religion', icon: Heart },
         { name: 'Manage Nationality', path: '/masters/manage_nationality', icon: Globe },
         { name: 'Manage Student Cast', path: '/masters/manage_student_cast', icon: Users },
-        { name: 'Subject Masters', path: '/masters/subject_masters', icon: BookOpen },
+        { name: 'Subject Masters', path: '/masters/subject_masters', icon: BookOpen, 
+          subItems: [
+            { name: 'Add Subject', path: '/masters/subject_masters/add_subject', icon: BookOpen },
+            { name: 'Manage Subject', path: '/masters/subject_masters/manage_subject', icon: Settings },
+            { name: 'Manage Subject to Student', path: '/masters/subject_masters/manage_subject_to_student', icon: Users }
+          ]
+        },
         { name: 'Manage Calendar', path: '/masters/manage_calendar', icon: Calendar },
         { name: 'Manage SMS Template', path: '/masters/manage_sms_template', icon: Settings },
         { name: 'Manage Blood Group', path: '/masters/manage_blood_group', icon: Heart },

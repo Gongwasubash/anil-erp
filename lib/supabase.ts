@@ -54,5 +54,43 @@ export const supabaseService = {
   getBatchClasses: () => supabase.from('batch_classes').select('*'),
   createBatchClass: (data: any) => supabase.from('batch_classes').insert(data),
   updateBatchClass: (id: string, data: any) => supabase.from('batch_classes').update(data).eq('id', id),
-  deleteBatchClass: (id: string) => supabase.from('batch_classes').delete().eq('id', id)
+  deleteBatchClass: (id: string) => supabase.from('batch_classes').delete().eq('id', id),
+  
+  // Subjects
+  getSubjects: () => supabase.from('subjects').select('*').order('order_no', { ascending: true }),
+  createSubject: (data: any) => supabase.from('subjects').insert(data),
+  updateSubject: (id: string, data: any) => supabase.from('subjects').update(data).eq('id', id),
+  deleteSubject: (id: string) => supabase.from('subjects').delete().eq('id', id),
+  
+  // Subject Assignments
+  getSubjectAssignments: () => supabase.from('subject_assignments').select('*').order('created_at', { ascending: false }),
+  createSubjectAssignment: (data: any) => supabase.from('subject_assignments').insert(data),
+  updateSubjectAssignment: (id: string, data: any) => supabase.from('subject_assignments').update(data).eq('id', id),
+  deleteSubjectAssignment: (id: string) => supabase.from('subject_assignments').delete().eq('id', id),
+  
+  // Student Subject Assignments
+  getStudentSubjectAssignments: () => supabase.from('student_subject_assignments').select('*'),
+  createStudentSubjectAssignments: (data: any[]) => supabase.from('student_subject_assignments').insert(data),
+  deleteStudentSubjectAssignments: (studentId: string, subjectId: string) => 
+    supabase.from('student_subject_assignments').delete().eq('student_id', studentId).eq('subject_id', subjectId),
+  getStudentSubjectAssignmentsBySubject: (subjectId: string) => 
+    supabase.from('student_subject_assignments').select('*').eq('subject_id', subjectId),
+  
+  // Exam Types
+  getExamTypes: () => supabase.from('exam_types').select('*').order('created_at', { ascending: false }),
+  createExamType: (data: any) => supabase.from('exam_types').insert(data),
+  updateExamType: (id: string, data: any) => supabase.from('exam_types').update(data).eq('id', id),
+  deleteExamType: (id: string) => supabase.from('exam_types').delete().eq('id', id),
+  
+  // Exam Names
+  getExamNames: () => supabase.from('exam_names').select('*').order('created_at', { ascending: false }),
+  createExamName: (data: any) => supabase.from('exam_names').insert(data),
+  updateExamName: (id: string, data: any) => supabase.from('exam_names').update(data).eq('id', id),
+  deleteExamName: (id: string) => supabase.from('exam_names').delete().eq('id', id),
+  
+  // Exam Marks
+  getExamMarks: () => supabase.from('exam_marks').select('*').order('created_at', { ascending: false }),
+  createExamMarks: (data: any[]) => supabase.from('exam_marks').insert(data).select(),
+  updateExamMarks: (id: string, data: any) => supabase.from('exam_marks').update(data).eq('id', id),
+  deleteExamMarks: (id: string) => supabase.from('exam_marks').delete().eq('id', id)
 };
