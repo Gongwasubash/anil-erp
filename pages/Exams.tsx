@@ -50,6 +50,7 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
     if (path.includes('exam_name')) return 'exam_name';
     if (path.includes('add_exam_marks')) return 'add_exam_marks';
     if (path.includes('add_students_marks')) return 'add_students_marks';
+    if (path.includes('view_students_marks')) return 'view_students_marks';
     return 'manage_grade';
   });
 
@@ -128,6 +129,21 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
   const [examMarksStudentsList, setExamMarksStudentsList] = useState<any[]>([]);
   // Add state for student marks data
   const [subjectMarksData, setSubjectMarksData] = useState<any>(null);
+  // View Students Marks states
+  const [viewStudentsMarksForm, setViewStudentsMarksForm] = useState({
+    schoolId: '',
+    batchId: '',
+    classId: '',
+    sectionId: '',
+    subjectId: '',
+    examTypeId: '',
+    examNameId: '',
+    printDate: ''
+  });
+  const [viewStudentsList, setViewStudentsList] = useState<any[]>([]);
+  const [viewSubjectMarksData, setViewSubjectMarksData] = useState<any>(null);
+  const [viewAllSubjectsMarksData, setViewAllSubjectsMarksData] = useState<{[key: string]: any}>({});
+  const [viewStudentMarks, setViewStudentMarks] = useState<{[key: string]: {theoryObtained: string, practicalObtained: string}}>({});
   const [studentMarks, setStudentMarks] = useState<{[key: string]: {theoryObtained: string, practicalObtained: string}}>({});
 
   const handleEditGrade = (grade: any) => {
@@ -175,6 +191,7 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
     if (path.includes('exam_name')) setActiveModule('exam_name');
     if (path.includes('add_exam_marks')) setActiveModule('add_exam_marks');
     if (path.includes('add_students_marks')) setActiveModule('add_students_marks');
+    if (path.includes('view_students_marks')) setActiveModule('view_students_marks');
     fetchGrades();
     fetchExamTypes();
     fetchExamNames();
@@ -197,6 +214,24 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
       setStudentMarks({});
     }
   }, [addStudentsMarksForm.schoolId, addStudentsMarksForm.batchId, addStudentsMarksForm.classId, addStudentsMarksForm.sectionId, addStudentsMarksForm.examTypeId, addStudentsMarksForm.examNameId, addStudentsMarksForm.subjectId]);
+
+  useEffect(() => {
+    if (viewStudentsMarksForm.schoolId && viewStudentsMarksForm.batchId && viewStudentsMarksForm.classId && viewStudentsMarksForm.sectionId) {
+      loadViewStudentsFromDatabase();
+    }
+    if (viewStudentsMarksForm.schoolId && viewStudentsMarksForm.batchId && viewStudentsMarksForm.classId && viewStudentsMarksForm.sectionId && viewStudentsMarksForm.examTypeId && viewStudentsMarksForm.examNameId) {
+      if (viewStudentsMarksForm.subjectId) {
+        loadViewSubjectMarksData();
+      } else {
+        loadViewAllSubjectsMarksData();
+      }
+      loadViewExistingStudentMarks();
+    } else {
+      setViewSubjectMarksData(null);
+      setViewAllSubjectsMarksData({});
+      setViewStudentMarks({});
+    }
+  }, [viewStudentsMarksForm.schoolId, viewStudentsMarksForm.batchId, viewStudentsMarksForm.classId, viewStudentsMarksForm.sectionId, viewStudentsMarksForm.examTypeId, viewStudentsMarksForm.examNameId, viewStudentsMarksForm.subjectId]);
 
   // Auto-load students for exam marks when filters are applied
   useEffect(() => {
@@ -231,6 +266,28 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
     setExamTypeForm({ examType: examType.exam_type });
     setEditingExamType(examType);
     setShowAddExamTypeForm(true);
+  };
+
+  const handleDeleteExamType = async (examTypeId: string) => {
+    if (!window.confirm('Are you sure you want to delete this exam type?')) return;
+    
+    try {
+      const { error } = await supabaseService.supabase
+        .from('exam_types')
+        .delete()
+        .eq('id', examTypeId);
+        
+      if (error) {
+        console.error('Error deleting exam type:', error);
+        alert('Error deleting exam type: ' + error.message);
+      } else {
+        alert('Exam type deleted successfully!');
+        fetchExamTypes();
+      }
+    } catch (err) {
+      console.error('Database error:', err);
+      alert('Database connection error');
+    }
   };
 
   const fetchSchools = async () => {
@@ -612,6 +669,160 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
     } catch (err) {
       console.error('Error loading student marks:', err);
       setStudentMarks({});
+    }
+  };
+
+  const loadViewStudentsFromDatabase = async () => {
+    if (!viewStudentsMarksForm.schoolId || !viewStudentsMarksForm.batchId || !viewStudentsMarksForm.classId || !viewStudentsMarksForm.sectionId) {
+      setViewStudentsList([]);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabaseService.supabase.from('students').select('*');
+      if (error) {
+        console.error('Error loading students:', error);
+        setViewStudentsList([]);
+      } else {
+        let filtered = [...(data || [])];
+        
+        if (viewStudentsMarksForm.schoolId) {
+          const schoolName = schoolsList.find(s => String(s.id) === String(viewStudentsMarksForm.schoolId))?.school_name;
+          filtered = filtered.filter(s => {
+            const studentSchool = s.school_id || s.schoolId || s.school || '';
+            return String(studentSchool) === String(viewStudentsMarksForm.schoolId) || 
+                   String(studentSchool) === schoolName;
+          });
+        }
+        
+        if (viewStudentsMarksForm.batchId) {
+          const batchName = batchesList.find(b => String(b.id) === String(viewStudentsMarksForm.batchId))?.batch_no;
+          filtered = filtered.filter(s => {
+            const studentBatch = s.batch_id || s.batchId || s.batch_no || s.batchNo || s.batch || '';
+            return String(studentBatch) === String(viewStudentsMarksForm.batchId) || 
+                   String(studentBatch) === batchName;
+          });
+        }
+        
+        if (viewStudentsMarksForm.classId) {
+          const className = classesList.find(c => String(c.id) === String(viewStudentsMarksForm.classId))?.class_name;
+          filtered = filtered.filter(s => {
+            const studentClass = s.class_id || s.classId || s.class || '';
+            return String(studentClass) === String(viewStudentsMarksForm.classId) || 
+                   String(studentClass) === className;
+          });
+        }
+        
+        if (viewStudentsMarksForm.sectionId) {
+          const sectionName = sectionsList.find(s => String(s.id) === String(viewStudentsMarksForm.sectionId))?.section_name;
+          filtered = filtered.filter(s => {
+            const studentSection = s.section_id || s.sectionId || s.section || '';
+            return String(studentSection) === String(viewStudentsMarksForm.sectionId) || 
+                   String(studentSection) === sectionName;
+          });
+        }
+        
+        setViewStudentsList(filtered);
+      }
+    } catch (err) {
+      console.error('Error loading students:', err);
+      setViewStudentsList([]);
+    }
+  };
+
+  const loadViewSubjectMarksData = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('exam_marks')
+        .select('*')
+        .eq('school_id', viewStudentsMarksForm.schoolId)
+        .eq('batch_id', viewStudentsMarksForm.batchId)
+        .eq('class_id', viewStudentsMarksForm.classId)
+        .eq('section_id', viewStudentsMarksForm.sectionId)
+        .eq('exam_type_id', viewStudentsMarksForm.examTypeId)
+        .eq('exam_name_id', viewStudentsMarksForm.examNameId)
+        .eq('subject_id', viewStudentsMarksForm.subjectId)
+        .single();
+        
+      if (error) {
+        console.error('Error loading subject marks:', error);
+        setViewSubjectMarksData(null);
+      } else {
+        setViewSubjectMarksData(data);
+      }
+    } catch (err) {
+      console.error('Error loading subject marks:', err);
+      setViewSubjectMarksData(null);
+    }
+  };
+
+  const loadViewAllSubjectsMarksData = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('exam_marks')
+        .select('*')
+        .eq('school_id', viewStudentsMarksForm.schoolId)
+        .eq('batch_id', viewStudentsMarksForm.batchId)
+        .eq('class_id', viewStudentsMarksForm.classId)
+        .eq('section_id', viewStudentsMarksForm.sectionId)
+        .eq('exam_type_id', viewStudentsMarksForm.examTypeId)
+        .eq('exam_name_id', viewStudentsMarksForm.examNameId);
+        
+      if (error) {
+        console.error('Error loading all subjects marks:', error);
+        setViewAllSubjectsMarksData({});
+      } else if (data && data.length > 0) {
+        const marksData: {[key: string]: any} = {};
+        data.forEach(mark => {
+          marksData[mark.subject_id] = mark;
+        });
+        setViewAllSubjectsMarksData(marksData);
+      } else {
+        setViewAllSubjectsMarksData({});
+      }
+    } catch (err) {
+      console.error('Error loading all subjects marks:', err);
+      setViewAllSubjectsMarksData({});
+    }
+  };
+
+  const loadViewExistingStudentMarks = async () => {
+    try {
+      let query = supabaseService.supabase
+        .from('student_marks')
+        .select('*')
+        .eq('school_id', viewStudentsMarksForm.schoolId)
+        .eq('batch_id', viewStudentsMarksForm.batchId)
+        .eq('class_id', viewStudentsMarksForm.classId)
+        .eq('section_id', viewStudentsMarksForm.sectionId)
+        .eq('exam_type_id', viewStudentsMarksForm.examTypeId)
+        .eq('exam_name_id', viewStudentsMarksForm.examNameId);
+        
+      if (viewStudentsMarksForm.subjectId) {
+        query = query.eq('subject_id', viewStudentsMarksForm.subjectId);
+      }
+      
+      const { data, error } = await query;
+        
+      if (error) {
+        console.error('Error loading student marks:', error);
+        setViewStudentMarks({});
+      } else if (data && data.length > 0) {
+        const loadedMarks: {[key: string]: {theoryObtained: string, practicalObtained: string}} = {};
+        data.forEach(mark => {
+          const key = viewStudentsMarksForm.subjectId ? mark.student_id : `${mark.student_id}_${mark.subject_id}`;
+          loadedMarks[key] = {
+            theoryObtained: mark.theory_marks_obtained?.toString() || '',
+            practicalObtained: mark.practical_marks_obtained?.toString() || ''
+          };
+        });
+        setViewStudentMarks(loadedMarks);
+      } else {
+        setViewStudentMarks({});
+      }
+    } catch (err) {
+      console.error('Error loading student marks:', err);
+      setViewStudentMarks({});
     }
   };
 
@@ -1932,6 +2143,341 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                     }}>
                       SUBMIT
                     </BlueBtn>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : activeModule === 'view_students_marks' ? (
+            <div>
+              <div className="mb-6 relative pb-4">
+                <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                  View Students Marks
+                </h2>
+                <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+              </div>
+
+              <SectionBox>
+                <div className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">School*</label>
+                      <select 
+                        value={viewStudentsMarksForm.schoolId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, schoolId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {schoolsList.map(school => (
+                          <option key={school.id} value={school.id}>{school.school_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Batch No.*</label>
+                      <select 
+                        value={viewStudentsMarksForm.batchId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, batchId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {batchesList.map(batch => (
+                          <option key={batch.id} value={batch.id}>{batch.batch_no}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Class*</label>
+                      <select 
+                        value={viewStudentsMarksForm.classId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, classId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {classesList.map(cls => (
+                          <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Section*</label>
+                      <select 
+                        value={viewStudentsMarksForm.sectionId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, sectionId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {sectionsList.map(section => (
+                          <option key={section.id} value={section.id}>{section.section_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Subject*</label>
+                      <select 
+                        value={viewStudentsMarksForm.subjectId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, subjectId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {subjectsList.map(subject => (
+                          <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Exam Type*</label>
+                      <select 
+                        value={viewStudentsMarksForm.examTypeId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, examTypeId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {examTypesList.map(type => (
+                          <option key={type.id} value={type.id}>{type.exam_type}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Exam Name*</label>
+                      <select 
+                        value={viewStudentsMarksForm.examNameId}
+                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, examNameId: e.target.value }))}
+                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                      >
+                        <option value="">--- Select ---</option>
+                        {examNamesList.map(exam => (
+                          <option key={exam.id} value={exam.id}>{exam.exam_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Print Date</label>
+                    <Input 
+                      type="date" 
+                      value={viewStudentsMarksForm.printDate}
+                      onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, printDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
+                  <BlueBtn onClick={() => {
+                    if (viewStudentsMarksForm.schoolId && viewStudentsMarksForm.batchId && viewStudentsMarksForm.classId && viewStudentsMarksForm.sectionId) {
+                      loadViewStudentsFromDatabase();
+                      if (viewStudentsMarksForm.subjectId && viewStudentsMarksForm.examTypeId && viewStudentsMarksForm.examNameId) {
+                        loadViewSubjectMarksData();
+                        loadViewExistingStudentMarks();
+                      } else if (viewStudentsMarksForm.examTypeId && viewStudentsMarksForm.examNameId) {
+                        loadViewAllSubjectsMarksData();
+                        loadViewExistingStudentMarks();
+                      }
+                    }
+                  }}>
+                    SEARCH
+                  </BlueBtn>
+                </div>
+              </SectionBox>
+
+              {viewStudentsList.length > 0 && (
+                <div className="bg-white border border-gray-300 mt-6">
+                  <div className="overflow-x-auto">
+                    {viewStudentsMarksForm.subjectId ? (
+                      // Single subject table
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-blue-600 text-white">
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">S.No</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">Print</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">Student Name</th>
+                            <th colSpan={4} className="border border-gray-300 px-3 py-2 text-xs font-bold">
+                              {viewSubjectMarksData ? 
+                                `${viewSubjectMarksData.subject_name} (${viewSubjectMarksData.subject_code})` : 
+                                'Subject'
+                              }
+                            </th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">Total</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">%</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">Grade</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">GPA</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">Result</th>
+                            <th rowSpan={3} className="border border-gray-300 px-3 py-2 text-xs font-bold">Remarks</th>
+                          </tr>
+                          <tr className="bg-blue-600 text-white">
+                            <th className="border border-gray-300 px-3 py-2 text-xs font-bold">TH</th>
+                            <th className="border border-gray-300 px-3 py-2 text-xs font-bold">PR</th>
+                            <th className="border border-gray-300 px-3 py-2 text-xs font-bold">TOT</th>
+                            <th className="border border-gray-300 px-3 py-2 text-xs font-bold">GR</th>
+                          </tr>
+                          <tr className="bg-blue-500 text-white">
+                            <th className="border border-gray-300 px-3 py-2 text-xs">{viewSubjectMarksData?.th_marks || 0}</th>
+                            <th className="border border-gray-300 px-3 py-2 text-xs">{viewSubjectMarksData?.pr_in_marks || 0}</th>
+                            <th className="border border-gray-300 px-3 py-2 text-xs">{(viewSubjectMarksData?.th_marks || 0) + (viewSubjectMarksData?.pr_in_marks || 0)}</th>
+                            <th className="border border-gray-300 px-3 py-2 text-xs"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewStudentsList.map((student, idx) => {
+                            const theoryObtained = parseFloat(viewStudentMarks[student.id]?.theoryObtained || '0');
+                            const practicalObtained = parseFloat(viewStudentMarks[student.id]?.practicalObtained || '0');
+                            const totalObtained = theoryObtained + practicalObtained;
+                            const totalMarks = (viewSubjectMarksData?.th_marks || 0) + (viewSubjectMarksData?.pr_in_marks || 0);
+                            const percentage = totalMarks > 0 ? ((totalObtained / totalMarks) * 100) : 0;
+                            
+                            const gradeData = gradesList.find(g => {
+                              const minPercent = g.min_percent !== undefined ? g.min_percent : g.minPercent;
+                              const maxPercent = g.max_percent !== undefined ? g.max_percent : g.maxPercent;
+                              return percentage >= minPercent && percentage <= maxPercent;
+                            });
+                            const grade = gradeData ? (gradeData.grade_name || gradeData.gradeName) : 'F';
+                            const gpa = gradeData ? (gradeData.grade_point !== undefined ? gradeData.grade_point : gradeData.gradePoint) : 0;
+                            const remarks = gradeData ? (gradeData.teacher_remarks || gradeData.teacherRemarks || gradeData.description) : '';
+                            
+                            const result = percentage >= 40 ? 'Pass' : 'Fail';
+                            
+                            return (
+                            <tr key={student.id} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center">{idx + 1}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center">
+                                <button className="text-blue-600 hover:underline">Print</button>
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs">
+                                {student.first_name} {student.last_name}
+                                <br/><span className="text-gray-500">({student.roll_no || idx + 1})</span>
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center">{theoryObtained}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center">{practicalObtained}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center font-semibold">{totalObtained}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center font-semibold text-blue-600">{grade}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center font-semibold">{totalObtained}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center">{percentage.toFixed(1)}%</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center font-semibold text-blue-600">{grade}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center font-semibold text-purple-600">{gpa}</td>
+                              <td className={`border border-gray-300 px-3 py-2 text-xs text-center font-semibold ${
+                                result === 'Pass' ? 'text-green-600' : 'text-red-600'
+                              }`}>{result}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-xs text-center text-gray-600">{remarks}</td>
+                            </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      // All subjects table
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-blue-600 text-white">
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-xs font-bold">S.No</th>
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-xs font-bold">Student Name</th>
+                            {subjectsList.map(subject => (
+                              <th key={subject.id} colSpan={8} className="border border-gray-300 px-2 py-2 text-xs font-bold">
+                                {subject.subject_name}
+                              </th>
+                            ))}
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-xs font-bold">Total</th>
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-xs font-bold">%</th>
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-xs font-bold">Grade</th>
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-xs font-bold">Result</th>
+                          </tr>
+                          <tr className="bg-blue-600 text-white">
+                            {subjectsList.map(subject => (
+                              <React.Fragment key={subject.id}>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">TH</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">PR</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">Total</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">%</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">Grade</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">GPA</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">Result</th>
+                                <th className="border border-gray-300 px-2 py-2 text-xs font-bold">Remarks</th>
+                              </React.Fragment>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewStudentsList.map((student, idx) => {
+                            // Calculate total marks for all subjects
+                            let totalObtained = 0;
+                            let totalFullMarks = 0;
+                            
+                            subjectsList.forEach(subject => {
+                              const markKey = `${student.id}_${subject.id}`;
+                              const marks = viewStudentMarks[markKey];
+                              if (marks) {
+                                const theoryObtained = parseFloat(marks.theoryObtained || '0');
+                                const practicalObtained = parseFloat(marks.practicalObtained || '0');
+                                totalObtained += theoryObtained + practicalObtained;
+                              }
+                              // Add full marks (assuming 100 per subject for now)
+                              totalFullMarks += 100;
+                            });
+                            
+                            const percentage = totalFullMarks > 0 ? ((totalObtained / totalFullMarks) * 100) : 0;
+                            const gradeData = gradesList.find(g => {
+                              const minPercent = g.min_percent !== undefined ? g.min_percent : g.minPercent;
+                              const maxPercent = g.max_percent !== undefined ? g.max_percent : g.maxPercent;
+                              return percentage >= minPercent && percentage <= maxPercent;
+                            });
+                            const grade = gradeData ? (gradeData.grade_name || gradeData.gradeName) : 'F';
+                            const result = percentage >= 40 ? 'Pass' : 'Fail';
+                            
+                            return (
+                            <tr key={student.id} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 px-2 py-2 text-xs text-center">{idx + 1}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-xs">
+                                {student.first_name} {student.last_name}
+                                <br/><span className="text-gray-500">({student.roll_no || idx + 1})</span>
+                              </td>
+                              {subjectsList.map(subject => {
+                                const markKey = `${student.id}_${subject.id}`;
+                                const marks = viewStudentMarks[markKey];
+                                const theoryObtained = marks ? parseFloat(marks.theoryObtained || '0') : 0;
+                                const practicalObtained = marks ? parseFloat(marks.practicalObtained || '0') : 0;
+                                const totalObtained = theoryObtained + practicalObtained;
+                                
+                                // Get actual full marks for this subject
+                                const subjectMarksInfo = viewAllSubjectsMarksData[subject.id];
+                                const theoryFullMarks = subjectMarksInfo?.th_marks || 0;
+                                const practicalFullMarks = subjectMarksInfo?.pr_in_marks || 0;
+                                const totalFullMarks = theoryFullMarks + practicalFullMarks;
+                                
+                                const percentage = totalFullMarks > 0 ? ((totalObtained / totalFullMarks) * 100) : 0;
+                                
+                                const gradeData = gradesList.find(g => {
+                                  const minPercent = g.min_percent !== undefined ? g.min_percent : g.minPercent;
+                                  const maxPercent = g.max_percent !== undefined ? g.max_percent : g.maxPercent;
+                                  return percentage >= minPercent && percentage <= maxPercent;
+                                });
+                                const grade = gradeData ? (gradeData.grade_name || gradeData.gradeName) : 'F';
+                                const gpa = gradeData ? (gradeData.grade_point !== undefined ? gradeData.grade_point : gradeData.gradePoint) : 0;
+                                const result = percentage >= 40 ? 'Pass' : 'Fail';
+                                const remarks = gradeData ? (gradeData.teacher_remarks || gradeData.teacherRemarks || gradeData.description) : '';
+                                
+                                return (
+                                <React.Fragment key={subject.id}>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center">{theoryObtained > 0 ? theoryObtained : '-'}</td>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center">{practicalObtained > 0 ? practicalObtained : '-'}</td>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center font-semibold">{totalObtained > 0 ? totalObtained : '-'}</td>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center">{totalObtained > 0 ? percentage.toFixed(1) + '%' : '-'}</td>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center font-semibold text-blue-600">{totalObtained > 0 ? grade : '-'}</td>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center font-semibold text-purple-600">{totalObtained > 0 ? gpa : '-'}</td>
+                                  <td className={`border border-gray-300 px-2 py-2 text-xs text-center font-semibold ${
+                                    result === 'Pass' ? 'text-green-600' : 'text-red-600'
+                                  }`}>{totalObtained > 0 ? result : '-'}</td>
+                                  <td className="border border-gray-300 px-2 py-2 text-xs text-center text-gray-600">{totalObtained > 0 ? remarks : '-'}</td>
+                                </React.Fragment>
+                                );
+                              })}
+                              <td className="border border-gray-300 px-2 py-2 text-xs text-center font-semibold">{totalObtained > 0 ? totalObtained : '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-xs text-center">{totalObtained > 0 ? percentage.toFixed(1) + '%' : '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-xs text-center font-semibold text-blue-600">{totalObtained > 0 ? grade : '-'}</td>
+                              <td className={`border border-gray-300 px-2 py-2 text-xs text-center font-semibold ${
+                                result === 'Pass' ? 'text-green-600' : 'text-red-600'
+                              }`}>{totalObtained > 0 ? result : '-'}</td>
+                            </tr>
+                          )})}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 </div>
               )}
