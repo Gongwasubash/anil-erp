@@ -113,11 +113,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     startingPoint: '',
     shortName: '',
     accountantNo: '',
-    branchIds: [] as string[],
     feeDueNote: '',
     feeReceiptNote: '',
     logoFile: null as File | null,
-    signatureFile: null as File | null
+    signatureFile: null as File | null,
+    country: 'Nepal',
+    state: 'Lalitpur',
+    city: 'Lalitpur',
+    phoneNo: '015261023',
+    address: '',
+    email: 'anil.maxconnect@gmail.com',
+    websiteUrl: ''
   });
 
   // Load sections from Supabase on component mount
@@ -1063,11 +1069,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       startingPoint: school.starting_point || '',
       shortName: school.short_name || '',
       accountantNo: school.accountant_no || '',
-      branchIds: school.branch_ids || [],
       feeDueNote: school.fee_due_note || '',
       feeReceiptNote: school.fee_receipt_note || '',
       logoFile: null,
-      signatureFile: null
+      signatureFile: null,
+      country: school.country || 'Nepal',
+      state: school.state || 'Lalitpur',
+      city: school.city || 'Lalitpur',
+      phoneNo: school.phone || '015261023',
+      address: school.address || '',
+      email: school.email || 'anil.maxconnect@gmail.com',
+      websiteUrl: school.website_url || ''
     });
     setShowEditSchool(true);
   };
@@ -1138,11 +1150,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       starting_point: schoolFormData.startingPoint,
       short_name: schoolFormData.shortName,
       accountant_no: schoolFormData.accountantNo,
-      branch_ids: schoolFormData.branchIds,
       fee_due_note: schoolFormData.feeDueNote,
       fee_receipt_note: schoolFormData.feeReceiptNote,
       logo_url: logoUrl,
-      signature_url: signatureUrl
+      signature_url: signatureUrl,
+      country: schoolFormData.country,
+      state: schoolFormData.state,
+      city: schoolFormData.city,
+      phone: schoolFormData.phoneNo,
+      address: schoolFormData.address,
+      email: schoolFormData.email,
+      website_url: schoolFormData.websiteUrl
     };
     
     const { data, error } = await supabaseService.createSchool(schoolData);
@@ -1160,11 +1178,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
         startingPoint: '',
         shortName: '',
         accountantNo: '',
-        branchIds: [],
         feeDueNote: '',
         feeReceiptNote: '',
         logoFile: null,
-        signatureFile: null
+        signatureFile: null,
+        country: 'Nepal',
+        state: 'Lalitpur',
+        city: 'Lalitpur',
+        phoneNo: '015261023',
+        address: '',
+        email: 'anil.maxconnect@gmail.com',
+        websiteUrl: ''
       });
       setShowAddSchool(false);
       loadSchools();
@@ -1212,11 +1236,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       starting_point: schoolFormData.startingPoint,
       short_name: schoolFormData.shortName,
       accountant_no: schoolFormData.accountantNo,
-      branch_ids: schoolFormData.branchIds,
       fee_due_note: schoolFormData.feeDueNote,
       fee_receipt_note: schoolFormData.feeReceiptNote,
       logo_url: logoUrl,
-      signature_url: signatureUrl
+      signature_url: signatureUrl,
+      country: schoolFormData.country,
+      state: schoolFormData.state,
+      city: schoolFormData.city,
+      phone: schoolFormData.phoneNo,
+      address: schoolFormData.address,
+      email: schoolFormData.email,
+      website_url: schoolFormData.websiteUrl
     };
     
     const { data, error } = await supabaseService.updateSchool(editingSchool.id, schoolData);
@@ -1394,28 +1424,68 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                     />
                   </div>
                   <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Country:</label>
+                    <input 
+                      value={schoolFormData.country}
+                      onChange={(e) => handleSchoolInputChange('country', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">State:</label>
+                    <input 
+                      value={schoolFormData.state}
+                      onChange={(e) => handleSchoolInputChange('state', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">City:</label>
+                    <input 
+                      value={schoolFormData.city}
+                      onChange={(e) => handleSchoolInputChange('city', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">PhoneNo:</label>
+                    <input 
+                      value={schoolFormData.phoneNo}
+                      onChange={(e) => handleSchoolInputChange('phoneNo', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Address:</label>
+                    <input 
+                      value={schoolFormData.address}
+                      onChange={(e) => handleSchoolInputChange('address', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Email ID:</label>
+                    <input 
+                      value={schoolFormData.email}
+                      onChange={(e) => handleSchoolInputChange('email', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Website URL:</label>
+                    <input 
+                      value={schoolFormData.websiteUrl}
+                      onChange={(e) => handleSchoolInputChange('websiteUrl', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
                     <label className="text-sm font-bold text-gray-700 mb-2">Accountant No.:</label>
                     <input 
                       value={schoolFormData.accountantNo}
                       onChange={(e) => handleSchoolInputChange('accountantNo', e.target.value)}
                       className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
                     />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-sm font-bold text-gray-700 mb-2">Branches:</label>
-                    <div className="border border-gray-300 p-3 bg-white max-h-32 overflow-y-auto">
-                      {branches.map((branch: any) => (
-                        <label key={branch.id} className="flex items-center gap-2 mb-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={schoolFormData.branchIds.includes(branch.id)}
-                            onChange={() => handleBranchToggle(branch.id)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">{branch.branch_name}</span>
-                        </label>
-                      ))}
-                    </div>
                   </div>
                   <div className="flex flex-col">
                     <label className="text-sm font-bold text-gray-700 mb-2">Fee Due Note:</label>
@@ -1497,7 +1567,14 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                     feeDueNote: '',
                     feeReceiptNote: '',
                     logoFile: null,
-                    signatureFile: null
+                    signatureFile: null,
+                    country: 'Nepal',
+                    state: 'Lalitpur',
+                    city: 'Lalitpur',
+                    phoneNo: '015261023',
+                    address: '',
+                    email: 'anil.maxconnect@gmail.com',
+                    websiteUrl: ''
                   });
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -1591,6 +1668,69 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                     />
                   </div>
                   <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Country:</label>
+                    <input 
+                      value={schoolFormData.country}
+                      onChange={(e) => handleSchoolInputChange('country', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter country"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">State:</label>
+                    <input 
+                      value={schoolFormData.state}
+                      onChange={(e) => handleSchoolInputChange('state', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter state"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">City:</label>
+                    <input 
+                      value={schoolFormData.city}
+                      onChange={(e) => handleSchoolInputChange('city', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter city"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">PhoneNo:</label>
+                    <input 
+                      value={schoolFormData.phoneNo}
+                      onChange={(e) => handleSchoolInputChange('phoneNo', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Address:</label>
+                    <input 
+                      value={schoolFormData.address}
+                      onChange={(e) => handleSchoolInputChange('address', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter address"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Email ID:</label>
+                    <input 
+                      value={schoolFormData.email}
+                      onChange={(e) => handleSchoolInputChange('email', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Website URL:</label>
+                    <input 
+                      value={schoolFormData.websiteUrl}
+                      onChange={(e) => handleSchoolInputChange('websiteUrl', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                      placeholder="Enter website URL"
+                    />
+                  </div>
+                  <div className="flex flex-col">
                     <label className="text-sm font-bold text-gray-700 mb-2">Accountant No.:</label>
                     <input 
                       value={schoolFormData.accountantNo}
@@ -1598,22 +1738,6 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                       className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
                       placeholder="Enter accountant number"
                     />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-sm font-bold text-gray-700 mb-2">Branches:</label>
-                    <div className="border border-gray-300 p-3 bg-white max-h-32 overflow-y-auto">
-                      {branches.map((branch: any) => (
-                        <label key={branch.id} className="flex items-center gap-2 mb-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={schoolFormData.branchIds.includes(branch.id)}
-                            onChange={() => handleBranchToggle(branch.id)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">{branch.branch_name}</span>
-                        </label>
-                      ))}
-                    </div>
                   </div>
                   <div className="flex flex-col">
                     <label className="text-sm font-bold text-gray-700 mb-2">Fee Due Note:</label>
@@ -1665,7 +1789,6 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Student Prefix ID</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Starting Point</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Short Name</th>
-                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Branches</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Manage Week Off</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Manage About Us</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Manage App Screen</th>
@@ -1693,7 +1816,6 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                         <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{school.prefix_id}</td>
                         <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{school.starting_point}</td>
                         <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{school.short_name}</td>
-                        <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">Main Campus</td>
                         <td className="px-4 lg:px-8 py-3 lg:py-5">
                           <button className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium hover:bg-blue-200 transition-colors">
                             Manage

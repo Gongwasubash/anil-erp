@@ -1,0 +1,9 @@
+-- Add new columns to existing schools table
+ALTER TABLE schools 
+ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Nepal',
+ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'Lalitpur',
+ADD COLUMN IF NOT EXISTS city TEXT DEFAULT 'Lalitpur',
+ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '015261023',
+ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '',
+ADD COLUMN IF NOT EXISTS email TEXT DEFAULT 'anil.maxconnect@gmail.com',
+ADD COLUMN IF NOT EXISTS website_url TEXT DEFAULT '';
