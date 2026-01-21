@@ -84,6 +84,24 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       ]
     },
     { 
+      name: 'Variable Fee Details', 
+      path: '/variable-fees', 
+      icon: Settings, 
+      roles: ['Super Admin', 'Admin', 'Accountant'],
+      subItems: [
+        { name: 'Fee Head', path: '/variable-fees/fee_head', icon: Tag },
+        { name: 'Manage Bill Header', path: '/variable-fees/manage_bill_header', icon: BookOpen },
+        { name: 'Add Start Bill No', path: '/variable-fees/add_start_bill_no', icon: Receipt },
+        { name: 'Add Student Variable Fee', path: '/variable-fees/add_student_variable_fee', icon: Users },
+        { name: 'Print Pre Bill', path: '/variable-fees/print_pre_bill', icon: CreditCard },
+        { name: 'Export/Import Due Amount', path: '/variable-fees/export_import_due_amount', icon: BookOpen },
+        { name: 'Fee Submit', path: '/variable-fees/fee_submit', icon: CreditCard },
+        { name: 'View Fee Details', path: '/variable-fees/view_fee_details', icon: BookOpen },
+        { name: 'Daily Fee Receipt Register', path: '/variable-fees/daily_fee_receipt_register', icon: Receipt },
+        { name: 'Student Fee Ledger', path: '/variable-fees/student_fee_ledger', icon: BookOpen }
+      ]
+    },
+    { 
       name: 'Exams & Result', 
       path: '/exams', 
       icon: GraduationCap, 
@@ -203,7 +221,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                     >
                       <div className="flex items-center gap-3">
                         <Icon size={20} />
-                        <span>{item.name}</span>
+                        <span className="text-sm">{item.name}</span>
                       </div>
                       {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </button>
@@ -238,7 +256,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                       : [...prev, subMenuKey]
                                   );
                                 }}
-                                className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"
+                                className="w-full flex items-center justify-between px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"
                               >
                                 <div className="flex items-center gap-2">
                                   {subItem.icon && <subItem.icon size={16} />}
@@ -257,7 +275,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                         to={subSubItem.path}
                                         onClick={() => setIsSidebarOpen(false)}
                                         className={`
-                                          flex items-center gap-2 px-4 py-2 text-xs rounded-lg transition-all duration-200
+                                          flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-all duration-200
                                           ${isSubActive 
                                             ? 'bg-blue-100 text-blue-700 font-bold' 
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
@@ -276,7 +294,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                               to={subItem.path}
                               onClick={() => setIsSidebarOpen(false)}
                               className={`
-                                flex items-center gap-2 px-4 py-2 text-xs rounded-lg transition-all duration-200
+                                flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-all duration-200
                                 ${location.pathname === subItem.path 
                                   ? 'bg-blue-100 text-blue-700 font-bold' 
                                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}

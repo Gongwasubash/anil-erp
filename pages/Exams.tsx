@@ -1814,32 +1814,32 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                 </SectionBox>
               ) : (
-                <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
+                <div className="bg-white border border-gray-300 mt-6">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full border-collapse">
                       <thead>
-                        <tr className="bg-white border-b">
-                          <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sl No.</th>
-                          <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Edit</th>
-                          <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Delete</th>
-                          <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Exam Type</th>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Sl No.</th>
+                          <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                          <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Delete</th>
+                          <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Exam Type</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody>
                         {examTypesList.map((examType, idx) => (
-                          <tr key={examType.id} className="hover:bg-blue-50/30 transition-colors">
-                            <td className="px-4 lg:px-8 py-3 lg:py-5 text-center text-gray-500 font-bold">{idx + 1}</td>
-                            <td className="px-4 lg:px-8 py-3 lg:py-5">
+                          <tr key={examType.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 px-2 py-1 text-xs text-center">{idx + 1}</td>
+                            <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                               <button onClick={() => handleEditExamType(examType)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all">
                                 <Edit size={18} />
                               </button>
                             </td>
-                            <td className="px-4 lg:px-8 py-3 lg:py-5">
+                            <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                               <button onClick={() => handleDeleteExamType(examType.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all">
                                 <Trash2 size={18} />
                               </button>
                             </td>
-                            <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{examType.exam_type}</td>
+                            <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{examType.exam_type}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2031,38 +2031,38 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                 </div>
               </SectionBox>
 
-              <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden mt-6">
+              <div className="bg-white border border-gray-300 mt-6">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[800px]">
+                  <table className="w-full border-collapse">
                     <thead>
-                      <tr className="bg-white border-b">
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sl No.</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">School</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Batch No.</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Class</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Section</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Exam Type</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Exam Name</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Edit</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Delete</th>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Sl No.</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">School</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Batch No.</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Class</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Section</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Exam Type</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Exam Name</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Delete</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody>
                       {examNamesList.map((examName, idx) => (
-                        <tr key={examName.id} className="hover:bg-blue-50/30 transition-colors">
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-center text-gray-500 font-bold">{idx + 1}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{schoolsList.find(s => s.id === examName.school_id)?.school_name || 'NORMAL MAX TEST ADMIN'}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{batchesList.find(b => b.id === examName.batch_id)?.batch_no || '2080'}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">Class {examName.class_id}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{examName.section_id === '1' ? 'A' : examName.section_id === '2' ? 'B' : 'C'}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{examTypesList.find(t => t.id === examName.exam_type_id)?.exam_type || 'Terminal'}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{examName.exam_name}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                        <tr key={examName.id} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{idx + 1}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{schoolsList.find(s => s.id === examName.school_id)?.school_name || 'NORMAL MAX TEST ADMIN'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{batchesList.find(b => b.id === examName.batch_id)?.batch_no || '2080'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">Class {examName.class_id}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{examName.section_id === '1' ? 'A' : examName.section_id === '2' ? 'B' : 'C'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{examTypesList.find(t => t.id === examName.exam_type_id)?.exam_type || 'Terminal'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{examName.exam_name}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                             <button onClick={() => handleEditExamName(examName)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all">
                               <Edit size={18} />
                             </button>
                           </td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                             <button onClick={() => handleDeleteExamName(examName.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all">
                               <Trash2 size={18} />
                             </button>
@@ -2800,7 +2800,7 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                     </div>
                     <BlueBtn 
                       onClick={handlePrintAllSelected}
-                      disabled={Object.values(selectedStudents).filter(Boolean).length === 0}
+                        disabled={Object.values(selectedStudents).filter(Boolean).length === 0}
                     >
                       PRINT SELECTED ({Object.values(selectedStudents).filter(Boolean).length})
                     </BlueBtn>
@@ -3716,46 +3716,46 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                 </div>
               </SectionBox>
 
-              <div className="bg-white rounded-2xl lg:rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden mt-6">
+              <div className="bg-white border border-gray-300 mt-6">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[800px]">
+                  <table className="w-full border-collapse">
                     <thead>
-                      <tr className="bg-white border-b">
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">S.No.</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Edit</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Delete</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Grade Name</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Min %</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Max %</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Grade Point</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Min G point</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Max G point</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Description</th>
-                        <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Teacher Remarks</th>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Sl No.</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Delete</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Grade Name</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Min %</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Max %</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Grade Point</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Min G point</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Max G point</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Description</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Teacher Remarks</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody>
                       {gradesList.map((grade, idx) => (
-                        <tr key={grade.id} className="hover:bg-blue-50/30 transition-colors group">
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-center text-gray-500 font-bold">{idx + 1}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                        <tr key={grade.id} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{idx + 1}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                             <button onClick={() => handleEditGrade(grade)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" title="Edit">
                               <Edit size={18} />
                             </button>
                           </td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5">
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                             <button onClick={() => handleDeleteGrade(grade.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all" title="Delete">
                               <Trash2 size={18} />
                             </button>
                           </td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{grade.grade_name || grade.gradeName}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.min_percent !== undefined ? grade.min_percent : (grade.minPercent !== undefined ? grade.minPercent : '')}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.max_percent !== undefined ? grade.max_percent : (grade.maxPercent !== undefined ? grade.maxPercent : '')}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.grade_point !== undefined ? grade.grade_point : (grade.gradePoint !== undefined ? grade.gradePoint : '')}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.min_g_point !== undefined ? grade.min_g_point : (grade.minGPoint !== undefined ? grade.minGPoint : '')}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.max_g_point !== undefined ? grade.max_g_point : (grade.maxGPoint !== undefined ? grade.maxGPoint : '')}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.description}</td>
-                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{grade.teacher_remarks || grade.teacherRemarks}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{grade.grade_name || grade.gradeName}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{grade.min_percent !== undefined ? grade.min_percent : (grade.minPercent !== undefined ? grade.minPercent : '')}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{grade.max_percent !== undefined ? grade.max_percent : (grade.maxPercent !== undefined ? grade.maxPercent : '')}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{grade.grade_point !== undefined ? grade.grade_point : (grade.gradePoint !== undefined ? grade.gradePoint : '')}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{grade.min_g_point !== undefined ? grade.min_g_point : (grade.minGPoint !== undefined ? grade.minGPoint : '')}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{grade.max_g_point !== undefined ? grade.max_g_point : (grade.maxGPoint !== undefined ? grade.maxGPoint : '')}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{grade.description}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{grade.teacher_remarks || grade.teacherRemarks}</td>
                         </tr>
                       ))}
                     </tbody>

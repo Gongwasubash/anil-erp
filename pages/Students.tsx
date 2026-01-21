@@ -1044,71 +1044,71 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
           </div>
 
           {/* Main Table View */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden">
-            <div className="p-6 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Student Records</h3>
+          <div className="bg-white border border-gray-300 overflow-hidden">
+            <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-700">Student Records</h3>
               {loading && <Loader2 className="animate-spin text-blue-600" size={20} />}
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-white border-b">
-                    <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Student Info</th>
-                    <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Academic Info</th>
-                    <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
-                    <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Guardian</th>
-                    <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Student Info</th>
+                    <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Academic Info</th>
+                    <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Contact</th>
+                    <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Guardian</th>
+                    <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Status</th>
+                    <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {loading && students.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-20 text-gray-400 font-medium">Fetching Records...</td></tr>
+                    <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">Fetching Records...</td></tr>
                   ) : filteredStudents.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-20 text-gray-400 font-medium">No records found.</td></tr>
+                    <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">No records found.</td></tr>
                   ) : filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-black shadow-sm uppercase">
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 px-2 py-1 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
                             {student.first_name?.[0] || 'S'}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{student.name || `${student.first_name || ''} ${student.last_name || ''}`.trim()}</p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">REG: {student.id}</p>
+                            <p className="text-xs font-semibold text-gray-900">{student.name || `${student.first_name || ''} ${student.last_name || ''}`.trim()}</p>
+                            <p className="text-xs text-gray-500">REG: {student.id}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="space-y-1">
-                            <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-[10px] font-black uppercase">{student.class} - {student.section}</span>
-                            <p className="text-[11px] font-bold text-gray-500">Roll: {student.roll_no}</p>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">
+                        <div>
+                            <span className="inline-block px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">{student.class} - {student.section}</span>
+                            <p className="text-xs text-gray-500 mt-1">Roll: {student.roll_no}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-sm">
-                        <div className="flex items-center gap-2 text-gray-600 font-bold">
-                            <Phone size={14} className="text-blue-500" />
+                      <td className="border border-gray-300 px-2 py-1 text-xs">
+                        <div className="flex items-center gap-1 text-gray-600">
+                            <Phone size={12} className="text-blue-500" />
                             {student.mobile1 || 'N/A'}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <p className="text-xs font-bold text-gray-700">{student.guardian_name || student.father_name || 'N/A'}</p>
-                        <p className="text-[10px] text-gray-400 font-medium">{student.father_name ? 'Father' : 'Guardian'}</p>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">
+                        <p className="text-xs font-semibold text-gray-700">{student.guardian_name || student.father_name || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{student.father_name ? 'Father' : 'Guardian'}</p>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                         <span className={`
-                          inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest
+                          inline-flex items-center px-2 py-1 rounded text-xs font-semibold
                           ${student.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
                         `}>
                           {student.status}
                         </span>
                       </td>
-                      <td className="px-8 py-5 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleView(student)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-xl transition-all"><Eye size={18} /></button>
-                          <button onClick={() => handleEdit(student)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all"><Edit2 size={18} /></button>
-                          <button onClick={() => handleDelete(student.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all"><Trash2 size={18} /></button>
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => handleView(student)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-all"><Eye size={14} /></button>
+                          <button onClick={() => handleEdit(student)} className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all"><Edit2 size={14} /></button>
+                          <button onClick={() => handleDelete(student.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>

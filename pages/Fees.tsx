@@ -29,6 +29,7 @@ import {
 import { User } from '../types';
 import { callBackend } from '../services/api';
 import { useLocation } from 'react-router-dom';
+import { supabaseService } from '../lib/supabase';
 
 // UI Components for consistent aesthetic
 const SubHeader = ({ title, onSync }: { title: string, onSync?: () => void }) => (
@@ -377,9 +378,17 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
   const fetchFeeHeads = async () => {
     setLoading(true);
     try {
-      const data = await callBackend('GET_DATA', { sheetName: 'fee_heads' });
-      setFeeHeadsList(data || []);
-    } catch (e) { console.error(e); }
+      const { data, error } = await supabaseService.supabase.from('fee_heads').select('*');
+      if (error) {
+        console.error('Error fetching fee heads:', error);
+        setFeeHeadsList([]);
+      } else {
+        setFeeHeadsList(data || []);
+      }
+    } catch (e) { 
+      console.error('Error fetching fee heads:', e);
+      setFeeHeadsList([]);
+    }
     finally { setLoading(false); }
   };
 
@@ -443,9 +452,13 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
   const fetchFeeMonths = async () => {
     setLoading(true);
     try {
-      const data = await callBackend('GET_DATA', { sheetName: 'month_master' });
-      console.log('Fee months data from backend:', data);
-      setFeeMonthsList(data || []);
+      const { data, error } = await supabaseService.supabase.from('fee_months').select('*');
+      if (error) {
+        console.error('Error fetching fee months:', error);
+        setFeeMonthsList([]);
+      } else {
+        setFeeMonthsList(data || []);
+      }
     } catch (e) { 
       console.error('Error fetching fee months:', e);
       setFeeMonthsList([]);
@@ -798,21 +811,33 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                   if (!feeHeadForm.type) { alert('Select Type (Variable, General, or Occasionally)'); return; }
                   setSubmitting(true);
                   try {
-                    let payload = { ...feeHeadForm };
-                    if (!editingFeeHeadId) {
-                      payload.id = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-                    }
+                    const payload = {
+                      fee_head: feeHeadForm.feeHead,
+                      short_name: feeHeadForm.shortName,
+                      type: feeHeadForm.type
+                    };
+                    
                     if (editingFeeHeadId) {
-                      await callBackend('UPDATE_DATA', { sheetName: 'fee_heads', id: editingFeeHeadId, data: payload });
+                      const { error } = await supabaseService.supabase
+                        .from('fee_heads')
+                        .update(payload)
+                        .eq('id', editingFeeHeadId);
+                      if (error) throw error;
                       alert('Fee Head Updated Successfully');
                       setEditingFeeHeadId(null);
                     } else {
-                      await callBackend('SAVE_DATA', { sheetName: 'fee_heads', data: payload });
+                      const { error } = await supabaseService.supabase
+                        .from('fee_heads')
+                        .insert([payload]);
+                      if (error) throw error;
                       alert('New Fee Head Added');
                     }
                     setFeeHeadForm({feeHead:'', shortName:'', type:''});
                     await fetchFeeHeads();
-                  } catch (e: any) { alert(e.message); }
+                  } catch (e: any) { 
+                    console.error('Error saving fee head:', e);
+                    alert(`Save failed: ${e.message}`); 
+                  }
                   finally { setSubmitting(false); }
                 }} disabled={submitting}>
                   {submitting ? <Loader2 size={12} className="animate-spin" /> : (editingFeeHeadId ? 'UPDATE' : 'ADD')}
@@ -823,47 +848,68 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                 }} color="bg-gray-400">CANCEL</BlueBtn>
               </div>
             </SectionBox>
-            <FeeTable 
-              headers={['SL.No', 'Fee Head', 'ShortName', 'Type', 'Edit', 'Delete']}
-              data={feeHeadsList}
-              renderRow={(row: FeeHead, i: number) => (
-                <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-8 py-5 text-center text-gray-500 font-bold">{i+1}</td>
-                  <td className="px-8 py-5 font-black text-gray-900">{row.feeHead}</td>
-                  <td className="px-8 py-5 text-gray-600">{row.shortName}</td>
-                  <td className="px-8 py-5 text-gray-500 capitalize">{row.type}</td>
-                  <td className="px-8 py-5">
-                    <button onClick={() => {
-                      setEditingFeeHeadId(row.id);
-                      setFeeHeadForm({
-                        feeHead: row.feeHead || '',
-                        shortName: row.shortName || '',
-                        type: row.type || ''
-                      });
-                    }} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" title="Edit">
-                      <Edit size={18} />
-                    </button>
-                  </td>
-                  <td className="px-8 py-5">
-                    <button onClick={async () => {
-                      if (!window.confirm('Are you sure you want to delete this fee head?')) return;
-                      setLoading(true);
-                      try {
-                        await callBackend('DELETE_DATA', { sheetName: 'fee_heads', id: row.id });
-                        alert('Fee Head deleted successfully');
-                        await fetchFeeHeads();
-                      } catch (e: any) {
-                        alert(`Delete failed: ${e.message}`);
-                      } finally {
-                        setLoading(false);
-                      }
-                    }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all" title="Delete">
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              )}
-            />
+            <div className="bg-white border border-gray-300 mt-6">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">SL.No</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Fee Head</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">ShortName</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Type</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {feeHeadsList.length === 0 ? (
+                      <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">No records found.</td></tr>
+                    ) : feeHeadsList.map((row: FeeHead, i: number) => (
+                      <tr key={row.id} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{i+1}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{row.fee_head}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs">{row.short_name}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs capitalize">{row.type}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                          <button onClick={() => {
+                            setEditingFeeHeadId(row.id);
+                            setFeeHeadForm({
+                              feeHead: row.fee_head || '',
+                              shortName: row.short_name || '',
+                              type: row.type || ''
+                            });
+                          }} className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" title="Edit">
+                            <Edit size={14} />
+                          </button>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                          <button onClick={async () => {
+                            if (!window.confirm('Are you sure you want to delete this fee head?')) return;
+                            setLoading(true);
+                            try {
+                              const { error } = await supabaseService.supabase
+                                .from('fee_heads')
+                                .delete()
+                                .eq('id', row.id);
+                              if (error) throw error;
+                              alert('Fee Head deleted successfully');
+                              await fetchFeeHeads();
+                            } catch (e: any) {
+                              console.error('Error deleting fee head:', e);
+                              alert(`Delete failed: ${e.message}`);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all" title="Delete">
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1181,7 +1227,7 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                 </div>
                 <div className="flex items-center h-10 bg-white">
                   <div className="w-32 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Month Order*:</div>
-                  <div className="flex-1 px-2"><Input type="number" value={feeMonthForm.monthOrder} onChange={(e) => setFeeMonthForm(p => ({ ...p, monthOrder: e.target.value }))} placeholder="1-12" /></div>
+                  <div className="flex-1 px-2"><Input type="number" min="1" max="12" value={feeMonthForm.monthOrder} onChange={(e) => setFeeMonthForm(p => ({ ...p, monthOrder: e.target.value }))} placeholder="1-12" /></div>
                 </div>
               </div>
               <div className="p-3.5 flex justify-center gap-4 bg-white">
@@ -1190,27 +1236,32 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                   if (!feeMonthForm.monthOrder.trim()) { alert('Enter Month Order'); return; }
                   setSubmitting(true);
                   try {
-                    let payload = { 
-                      feeMonth: feeMonthForm.monthName,
-                      monthOrder: parseInt(feeMonthForm.monthOrder),
-                      feeStructure: '',
-                      feeSubmitDate: '',
-                      fine: 0
+                    const payload = {
+                      month_name: feeMonthForm.monthName,
+                      month_order: parseInt(feeMonthForm.monthOrder)
                     };
-                    if (!editingFeeMonthId) {
-                      payload.id = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-                    }
+                    
                     if (editingFeeMonthId) {
-                      await callBackend('UPDATE_DATA', { sheetName: 'month_master', id: editingFeeMonthId, data: payload });
+                      const { error } = await supabaseService.supabase
+                        .from('fee_months')
+                        .update(payload)
+                        .eq('id', editingFeeMonthId);
+                      if (error) throw error;
                       alert('Fee Month Updated Successfully');
                       setEditingFeeMonthId(null);
                     } else {
-                      await callBackend('SAVE_DATA', { sheetName: 'month_master', data: payload });
+                      const { error } = await supabaseService.supabase
+                        .from('fee_months')
+                        .insert([payload]);
+                      if (error) throw error;
                       alert('New Fee Month Added');
                     }
                     setFeeMonthForm({monthName:'', monthOrder:''});
                     await fetchFeeMonths();
-                  } catch (e: any) { alert(e.message); }
+                  } catch (e: any) { 
+                    console.error('Error saving fee month:', e);
+                    alert(`Save failed: ${e.message}`); 
+                  }
                   finally { setSubmitting(false); }
                 }} disabled={submitting}>
                   {submitting ? <Loader2 size={12} className="animate-spin" /> : (editingFeeMonthId ? 'UPDATE' : 'ADD')}
@@ -1228,34 +1279,45 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
               <p className="text-sm text-gray-500 mt-2">Total records: {feeMonthsList.length}</p>
             </div>
             
-            <FeeTable 
-              headers={['S.no', 'Month', 'Month Order', 'Edit']}
-              data={feeMonthsList.filter(month => 
-                feeMonthSearch === '' || 
-                (month.feeMonth && month.feeMonth.toLowerCase().includes(feeMonthSearch.toLowerCase()))
-              )}
-              renderRow={(row: any, i: number) => {
-                console.log('Rendering row:', row, 'Index:', i);
-                return (
-                  <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-8 py-5 text-center text-gray-500 font-bold">{i + 1}</td>
-                    <td className="px-8 py-5 font-black text-gray-900">{row.feeMonth || 'N/A'}</td>
-                    <td className="px-8 py-5 text-gray-600">{row.monthOrder || 'N/A'}</td>
-                    <td className="px-8 py-5">
-                      <button onClick={() => {
-                        setEditingFeeMonthId(row.id);
-                        setFeeMonthForm({
-                          monthName: row.feeMonth || '',
-                          monthOrder: row.monthOrder ? row.monthOrder.toString() : ''
-                        });
-                      }} className="px-4 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                );
-              }}
-            />
+            <div className="bg-white border border-gray-300 mt-6">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">S.no</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Month</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Month Order</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {feeMonthsList.length === 0 ? (
+                      <tr><td colSpan={4} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">No records found.</td></tr>
+                    ) : feeMonthsList.filter(month => 
+                      feeMonthSearch === '' || 
+                      (month.month_name && month.month_name.toLowerCase().includes(feeMonthSearch.toLowerCase()))
+                    ).map((row: any, i: number) => (
+                      <tr key={row.id} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{i + 1}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{row.month_name || 'N/A'}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{row.month_order || 'N/A'}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                          <button onClick={() => {
+                            setEditingFeeMonthId(row.id);
+                            setFeeMonthForm({
+                              monthName: row.month_name || '',
+                              monthOrder: row.month_order ? row.month_order.toString() : ''
+                            });
+                          }} className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" title="Edit">
+                            <Edit size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
