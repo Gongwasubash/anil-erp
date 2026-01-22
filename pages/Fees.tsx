@@ -244,6 +244,9 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
   const [feeHeadsData, setFeeHeadsData] = useState<any[]>([]);
   const [totals, setTotals] = useState({ general: 0, twentyFivePercent: 0, fiftyPercent: 0, outOfThree: 0 });
 
+  // Fee Payments State
+  const [feePaymentsList, setFeePaymentsList] = useState<any[]>([]);
+
   const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
@@ -276,6 +279,7 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
     else if (activeModule === 'student_fee_submit') { fetchFinYears(); fetchFeeHeads(); }
     else if (activeModule === 'view_student_fee_details') { fetchFinYears(); fetchFeeHeads(); }
     else if (activeModule === 'daily_fee_receipt_register') { fetchFinYears(); fetchFeeHeads(); }
+    else if (activeModule === 'fees_submitted') fetchFeePayments();
     else if (activeModule === 'submit') fetchStudents();
   }, [activeModule]);
 
@@ -462,6 +466,23 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
     } catch (e) { 
       console.error('Error fetching fee months:', e);
       setFeeMonthsList([]);
+    }
+    finally { setLoading(false); }
+  };
+
+  const fetchFeePayments = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabaseService.supabase.from('fee_payments').select('*');
+      if (error) {
+        console.error('Error fetching fee payments:', error);
+        setFeePaymentsList([]);
+      } else {
+        setFeePaymentsList(data || []);
+      }
+    } catch (e) { 
+      console.error('Error fetching fee payments:', e);
+      setFeePaymentsList([]);
     }
     finally { setLoading(false); }
   };
@@ -1296,7 +1317,7 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                     ) : feeMonthsList.filter(month => 
                       feeMonthSearch === '' || 
                       (month.month_name && month.month_name.toLowerCase().includes(feeMonthSearch.toLowerCase()))
-                    ).map((row: any, i: number) => (
+                    ).sort((a, b) => (a.month_order || 0) - (b.month_order || 0)).map((row: any, i: number) => (
                       <tr key={row.id} className="hover:bg-gray-50">
                         <td className="border border-gray-300 px-2 py-1 text-xs text-center">{i + 1}</td>
                         <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{row.month_name || 'N/A'}</td>
@@ -1932,6 +1953,38 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                 </BlueBtn>
               </div>
             </SectionBox>
+          </div>
+        )}
+
+        {activeModule === 'fees_submitted' && (
+          <div>
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Fees Submitted
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <FeeTable 
+              headers={['Receipt No', 'Student ID', 'Receipt Date', 'Total Amount', 'Fine Amount', 'Discount Amount', 'Other Amount', 'Payment Mode', 'School', 'Batch', 'Class', 'Section']}
+              data={feePaymentsList}
+              renderRow={(row: any, i: number) => (
+                <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
+                  <td className="px-8 py-5 font-black text-gray-900">{row.receipt_no}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.student_id}</td>
+                  <td className="px-8 py-5 text-gray-500">{row.receipt_date}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.total_amount}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.fine_amount || 0}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.discount_amount || 0}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.other_amount || 0}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.payment_mode}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.school}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.batch}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.class}</td>
+                  <td className="px-8 py-5 text-gray-600">{row.section}</td>
+                </tr>
+              )}
+            />
           </div>
         )}
 

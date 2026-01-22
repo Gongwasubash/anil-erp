@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import { COLORS } from '../constants';
+import { supabaseService } from '../lib/supabase';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,7 +39,27 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['fees&billing', 'feemaster', 'masters']);
+  const [schoolData, setSchoolData] = useState<any>(null);
   const location = useLocation();
+
+  useEffect(() => {
+    fetchSchoolData();
+  }, []);
+
+  const fetchSchoolData = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('schools')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      setSchoolData(data);
+    } catch (e) {
+      console.error('Error fetching school data:', e);
+    }
+  };
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Accountant', 'Teacher', 'Student'] },
@@ -184,11 +205,19 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       `}>
         <div className="h-full flex flex-col">
           <div className="p-6 flex items-center gap-3 border-b">
-            <div className="p-2 bg-blue-600 rounded-lg text-white">
-              <School size={24} />
+            <div className="flex items-center justify-center">
+              {schoolData?.logo_url ? (
+                <img src={schoolData.logo_url} alt="School Logo" className="w-8 h-8 object-contain" />
+              ) : (
+                <div className="p-2 bg-blue-600 rounded-lg text-white">
+                  <School size={20} />
+                </div>
+              )}
             </div>
             <div>
-              <h1 className="font-bold text-gray-800 tracking-tight">EVEREST</h1>
+              <h1 className="font-bold text-gray-800 tracking-tight">
+                {schoolData?.school_name || 'EVEREST'}
+              </h1>
               <p className="text-xs text-gray-500 font-medium uppercase">School ERP</p>
             </div>
           </div>
@@ -209,7 +238,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                         setExpandedMenus(prev => 
                           prev.includes(menuKey) 
                             ? prev.filter(m => m !== menuKey)
-                            : [...prev, menuKey]
+                            : [menuKey]
                         );
                       }}
                       className={`
@@ -253,7 +282,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                   setExpandedMenus(prev => 
                                     prev.includes(subMenuKey) 
                                       ? prev.filter(m => m !== subMenuKey)
-                                      : [...prev, subMenuKey]
+                                      : [subMenuKey]
                                   );
                                 }}
                                 className="w-full flex items-center justify-between px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"

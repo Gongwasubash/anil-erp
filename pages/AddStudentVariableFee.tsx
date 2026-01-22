@@ -358,7 +358,7 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
             <div className="flex-1 px-2">
               <Select value={form.feeMonth} onChange={(e) => setForm(p => ({ ...p, feeMonth: e.target.value }))}>
                 <option value="">--select--</option>
-                {feeMonths.map(month => (
+                {feeMonths.sort((a, b) => (a.month_order || 0) - (b.month_order || 0)).map(month => (
                   <option key={month.id} value={month.month_name}>{month.month_name}</option>
                 ))}
               </Select>
@@ -450,7 +450,7 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
         <div className="p-4">
           <h3 className="text-sm font-bold text-gray-700 mb-4">Select Months</h3>
           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {feeMonths.map(month => (
+            {feeMonths.sort((a, b) => (a.month_order || 0) - (b.month_order || 0)).map(month => (
               <div key={month.id} className="flex items-center">
                 <input 
                   type="checkbox" 

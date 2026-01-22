@@ -49,6 +49,8 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
   const [feeMonths, setFeeMonths] = useState<any[]>([]);
   const [selectedMonths, setSelectedMonths] = useState<{[monthId: string]: boolean}>({});
   const [paymentAmounts, setPaymentAmounts] = useState<{[key: string]: string}>({});
+  const [submittedPayments, setSubmittedPayments] = useState<{[key: string]: number}>({});
+  const [feeReceived, setFeeReceived] = useState<{[key: string]: number}>({});
 
   const [schoolDetails, setSchoolDetails] = useState<any>(null);
 
@@ -102,6 +104,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     if (selectedStudent) {
       loadStudentFees();
+      loadFeeReceived();
     }
   }, [selectedStudent]);
 
@@ -202,9 +205,60 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
       
       if (error) throw error;
       setStudentFees(data || []);
+      
+      // Load submitted payments for this student
+      await loadSubmittedPayments();
     } catch (e) {
       console.error('Error loading student fees:', e);
       setStudentFees([]);
+    }
+  };
+
+  const loadSubmittedPayments = async () => {
+    try {
+      if (!selectedStudent) return;
+      
+      const { data, error } = await supabaseService.supabase
+        .from('fee_payments')
+        .select('*')
+        .eq('student_id', selectedStudent.id);
+      
+      if (error) throw error;
+      
+      // Group payments by month and fee head
+      const payments = {};
+      (data || []).forEach(payment => {
+        const key = (payment.month_name || '') + '_' + (payment.fee_head || '');
+        payments[key] = (payments[key] || 0) + parseFloat(payment.amount || 0);
+      });
+      
+      setSubmittedPayments(payments);
+    } catch (e) {
+      console.error('Error loading submitted payments:', e);
+    }
+  };
+
+  const loadFeeReceived = async () => {
+    try {
+      if (!selectedStudent) return;
+      
+      const { data, error } = await supabaseService.supabase
+        .from('fee_payments')
+        .select('*')
+        .eq('student_id', selectedStudent.id);
+      
+      if (error) throw error;
+      
+      // Group received amounts by month and fee head
+      const received = {};
+      (data || []).forEach(payment => {
+        const key = (payment.month_name || '') + '_' + (payment.fee_head || '');
+        received[key] = (received[key] || 0) + parseFloat(payment.amount || 0);
+      });
+      
+      setFeeReceived(received);
+    } catch (e) {
+      console.error('Error loading fee received:', e);
     }
   };
 
@@ -233,15 +287,147 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
     popup.feeMonthsData = feeMonths;
     popup.selectedStudentId = student.id;
     
+    // Pass submitted payments to popup
+    const { data: currentSubmittedPayments, error: paymentsError } = await supabaseService.supabase
+      .from('fee_payments')
+      .select('*')
+      .eq('student_id', student.id);
+    
+    const submittedPaymentsForPopup = {};
+    if (!paymentsError && currentSubmittedPayments) {
+      currentSubmittedPayments.forEach(payment => {
+        const key = (payment.month_name || '') + '_' + (payment.fee_head || '');
+        submittedPaymentsForPopup[key] = (submittedPaymentsForPopup[key] || 0) + parseFloat(payment.amount || 0);
+      });
+    }
+    
+    popup.submittedPayments = submittedPaymentsForPopup;
+    
     // Make school details available to popup
     popup.schoolDetails = schoolDetails;
     
-    // Also make it available globally in the popup window
-    popup.addEventListener('load', () => {
-      popup.window.schoolDetails = schoolDetails;
-    });
+    // Pass callback function for saving payments
+    popup.savePaymentCallback = async (paymentData, selectedFees) => {
+      try {
+        console.log('savePaymentCallback called with:', paymentData, selectedFees);
+        
+        // Check for existing payments and calculate remaining amounts
+        const { data: existingPayments, error: checkError } = await supabaseService.supabase
+          .from('fee_payments')
+          .select('month_name, fee_head, amount')
+          .eq('student_id', paymentData.student_id);
+        
+        if (checkError) {
+          console.error('Error checking existing payments:', checkError);
+        }
+        
+        // Get student fees to check remaining amounts
+        const { data: studentFees, error: feesError } = await supabaseService.supabase
+          .from('student_variable_fees')
+          .select('*')
+          .eq('student_id', paymentData.student_id);
+        
+        // Get fee heads and months for matching
+        const { data: feeHeadsData } = await supabaseService.supabase.from('fee_heads').select('*');
+        const { data: feeMonthsData } = await supabaseService.supabase.from('fee_months').select('*');
+        
+        // Filter out fully paid fees
+        const newFees = selectedFees.filter(fee => {
+          // Find the student fee record
+          const feeHeadObj = feeHeadsData?.find(fh => fh.fee_head === fee.head);
+          const monthObj = feeMonthsData?.find(m => m.month_name === fee.month);
+          
+          if (!feeHeadObj || !monthObj) return false;
+          
+          const studentFee = studentFees?.find(sf => 
+            sf.month_id === monthObj.id && sf.fee_head_id === feeHeadObj.id
+          );
+          
+          if (!studentFee) return false; // No fee record found
+          
+          // Calculate total paid for this fee
+          const totalPaid = existingPayments?.filter(ep => 
+            ep.month_name === fee.month && ep.fee_head === fee.head
+          ).reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0) || 0;
+          
+          const remainingAmount = parseFloat(studentFee.amount) - totalPaid;
+          
+          return remainingAmount > 0; // Only allow if there's remaining amount
+        });
+        
+        if (newFees.length === 0) {
+          alert('All selected fees have already been submitted!');
+          return { success: false };
+        }
+        
+        if (newFees.length < selectedFees.length) {
+          const skipped = selectedFees.length - newFees.length;
+          alert(`${skipped} fee(s) already submitted. Saving only new fees.`);
+        }
+        
+        // Save each new fee as separate record
+        const paymentRecords = newFees.map(fee => ({
+          student_id: paymentData.student_id,
+          receipt_no: paymentData.receipt_no,
+          receipt_date: paymentData.receipt_date,
+          month_name: fee.month,
+          fee_head: fee.head,
+          amount: fee.amount,
+          remaining_amount: fee.remainingAmount || 0,
+          fine_amount: paymentData.fine_amount,
+          discount_amount: paymentData.discount_amount,
+          other_amount: paymentData.other_amount,
+          payment_mode: paymentData.payment_mode,
+          school: paymentData.school,
+          batch: paymentData.batch,
+          class: paymentData.class,
+          section: paymentData.section,
+          created_at: paymentData.created_at
+        }));
+        
+        // Save to fee_payments table
+        const { data: paymentResult, error: paymentError } = await supabaseService.supabase
+          .from('fee_payments')
+          .insert(paymentRecords)
+          .select();
+        
+        console.log('Payment insert result:', paymentResult, 'Error:', paymentError);
+        
+        if (paymentError) {
+          console.error('Payment error:', paymentError);
+          throw paymentError;
+        }
+        
+        // Reload submitted payments after saving
+        await loadSubmittedPayments();
+        await loadFeeReceived();
+        
+        // Fetch updated submitted payments for popup
+        const { data: updatedPayments, error: fetchError } = await supabaseService.supabase
+          .from('fee_payments')
+          .select('*')
+          .eq('student_id', student.id);
+        
+        if (!fetchError) {
+          const payments = {};
+          (updatedPayments || []).forEach(payment => {
+            const key = (payment.month_name || '') + '_' + (payment.fee_head || '');
+            payments[key] = (payments[key] || 0) + parseFloat(payment.amount || 0);
+          });
+          popup.submittedPayments = payments;
+        }
+        
+        console.log('Payment saved successfully');
+        return { success: true };
+      } catch (error) {
+        console.error('Error in savePaymentCallback:', error);
+        throw error;
+      }
+    };
     
-    popup.document.write(`
+    // Wait for popup to load before writing content
+    popup.onload = function() {
+      popup.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
@@ -319,7 +505,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
           <div class="months-list">
             <h4 style="font-weight: bold; margin-bottom: 10px;">Select Months</h4>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-              ${feeMonths.map(month => `
+              ${feeMonths.sort((a, b) => (a.month_order || 0) - (b.month_order || 0)).map(month => `
                 <div style="display: flex; align-items: center;">
                   <input type="checkbox" id="month-${month.id}" class="month-checkbox" value="${month.id}" style="margin-right: 5px;" onchange="loadFeesForSelectedMonths()">
                   <label for="month-${month.id}" style="font-size: 11px; cursor: pointer;">${month.month_name}</label>
@@ -445,42 +631,120 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 const month = row.cells[2].textContent;
                 const feeHead = row.cells[3].textContent;
                 const amount = parseFloat(row.querySelector('input[type="number"]').value) || 0;
-                selectedFees.push({ month, head: feeHead, amount });
+                const remainingAmount = parseFloat(row.cells[7].textContent) || 0;
+                
+                // Find month and fee head IDs from window data
+                const feeMonths = window.feeMonthsData || [];
+                const feeHeads = window.feeHeadsData || [];
+                const monthObj = feeMonths.find(m => m.month_name === month);
+                const headObj = feeHeads.find(h => h.fee_head === feeHead);
+                
+                selectedFees.push({ 
+                  month, 
+                  head: feeHead, 
+                  amount, 
+                  remainingAmount,
+                  monthId: monthObj?.id,
+                  headId: headObj?.id
+                });
               }
             });
             
-            // Group fees by fee head
-            const feeGroups = {};
-            selectedFees.forEach(fee => {
-              if (!feeGroups[fee.head]) {
-                feeGroups[fee.head] = { months: [], totalAmount: 0 };
-              }
-              if (!feeGroups[fee.head].months.includes(fee.month)) {
-                feeGroups[fee.head].months.push(fee.month);
-              }
-              feeGroups[fee.head].totalAmount += fee.amount;
+            if (selectedFees.length === 0) {
+              alert('Please select at least one fee to submit');
+              return;
+            }
+            
+            // Save payment records to Supabase and update table
+            savePaymentRecords(selectedFees).then(() => {
+              // Update the table display after successful payment
+              updateTableAfterPayment(selectedFees);
+              // Group fees by fee head
+              const feeGroups = {};
+              selectedFees.forEach(fee => {
+                if (!feeGroups[fee.head]) {
+                  feeGroups[fee.head] = { months: [], totalAmount: 0 };
+                }
+                if (!feeGroups[fee.head].months.includes(fee.month)) {
+                  feeGroups[fee.head].months.push(fee.month);
+                }
+                feeGroups[fee.head].totalAmount += fee.amount;
+              });
+              
+              const totalAmount = selectedFees.reduce((sum, fee) => sum + fee.amount, 0);
+              const totalRemainingAmount = selectedFees.reduce((sum, fee) => sum + (fee.remainingAmount || 0), 0);
+              const amountInWords = numberToWords(totalAmount);
+              
+              const receiptWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes,resizable=yes');
+              const schoolData = window.schoolDetails || window.opener?.schoolDetails;
+              const schoolName = schoolData?.school_name || '${form.school}';
+              const schoolAddress = schoolData?.address || 'School Address';
+              const schoolEmail = schoolData?.email || '';
+              const schoolLogo = schoolData?.logo_url || '';
+              const schoolPAN = schoolData?.pan_no || '';
+              
+              // Generate receipt rows from grouped fees
+              const receiptRows = Object.entries(feeGroups).map(([feeHead, data], index) => 
+                '<tr><td>' + (index + 1) + '.</td><td>' + data.months.join(', ') + '</td><td>' + feeHead + '</td><td class="moveright">Rs. ' + data.totalAmount + '</td></tr>'
+              ).join('');
+              
+              receiptWindow.document.write('<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;margin-top:8px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A6}.bill{page-break-after:always}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span id="receipt-display">' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('other-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('fine-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + (totalAmount + (parseFloat(document.getElementById('other-amount').value) || 0) + (parseFloat(document.getElementById('fine-amount').value) || 0) - (parseFloat(document.getElementById('discount').value) || 0)) + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Remaining Amount:</td><td class="moveright">Rs. ' + totalRemainingAmount + '</td></tr><tr><td colspan="2" style="font-size:10px;font-weight:bold;padding:10px;">Amount In Words:</td><td colspan="2">' + amountInWords + ' Only/-</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div></body></html>');
+              receiptWindow.document.close();
+              
+              alert('Payment Submitted Successfully!');
+              window.close();
+            }).catch(error => {
+              console.error('Error saving payment:', error);
+              alert('Error saving payment: ' + error.message);
             });
-            
-            const totalAmount = parseFloat(document.getElementById('net-payable').value) || 0;
-            const amountInWords = numberToWords(totalAmount);
-            
-            const receiptWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes,resizable=yes');
-            const schoolData = window.schoolDetails || window.opener?.schoolDetails;
-            const schoolName = schoolData?.school_name || '${form.school}';
-            const schoolAddress = schoolData?.address || 'School Address';
-            const schoolEmail = schoolData?.email || '';
-            const schoolLogo = schoolData?.logo_url || '';
-            const schoolPAN = schoolData?.pan_no || '';
-            
-            // Generate receipt rows from grouped fees
-            const receiptRows = Object.entries(feeGroups).map(([feeHead, data], index) => 
-              '<tr><td>' + (index + 1) + '.</td><td>' + data.months.join(', ') + '</td><td>' + feeHead + '</td><td class="moveright">Rs. ' + data.totalAmount + '</td></tr>'
-            ).join('');
-            
-            receiptWindow.document.write('<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;margin-top:8px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A6}.bill{page-break-after:always}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span id="receipt-display">' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + document.getElementById('due-amount').value + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + document.getElementById('other-amount').value + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + document.getElementById('fine-amount').value + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + document.getElementById('net-payable').value + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + document.getElementById('pay-amount').value + '</td></tr><tr><td colspan="3" class="moveright">Remaining Amount:</td><td class="moveright">Rs. ' + document.getElementById('remaining-amount').value + '</td></tr><tr><td colspan="2" style="font-size:10px;font-weight:bold;padding:10px;">Amount In Words:</td><td colspan="2">' + amountInWords + ' Only/-</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div></body></html>');
-            receiptWindow.document.close();
-            alert('Payment Submitted');
-            window.close();
+          }
+          
+          async function savePaymentRecords(selectedFees) {
+            try {
+              console.log('savePaymentRecords called with selectedFees:', selectedFees);
+              
+              const receiptNo = document.getElementById('m-receipt-no').value;
+              const receiptDate = document.querySelector('input[type="date"]').value;
+              const payAmount = parseFloat(document.getElementById('pay-amount').value) || 0;
+              const fineAmount = parseFloat(document.getElementById('fine-amount').value) || 0;
+              const discount = parseFloat(document.getElementById('discount').value) || 0;
+              const otherAmount = parseFloat(document.getElementById('other-amount').value) || 0;
+              
+              console.log('Form values:', { receiptNo, receiptDate, payAmount, fineAmount, discount, otherAmount });
+              
+              // Create payment record
+              const paymentRecord = {
+                student_id: window.selectedStudentId,
+                receipt_no: receiptNo,
+                receipt_date: receiptDate,
+                total_amount: payAmount,
+                fine_amount: fineAmount,
+                discount_amount: discount,
+                other_amount: otherAmount,
+                payment_mode: 'Cash',
+                school: '${form.school}',
+                batch: '${form.batch}',
+                class: '${form.class}',
+                section: '${form.section}',
+                created_at: new Date().toISOString()
+              };
+              
+              console.log('Payment record to save:', paymentRecord);
+              
+              // Use callback function from parent window
+              if (window.savePaymentCallback) {
+                console.log('Calling savePaymentCallback...');
+                await window.savePaymentCallback(paymentRecord, selectedFees);
+                console.log('savePaymentCallback completed successfully');
+              } else {
+                console.error('savePaymentCallback not found on window object');
+                throw new Error('Payment callback not available');
+              }
+              
+            } catch (error) {
+              console.error('Error in savePaymentRecords:', error);
+              throw error;
+            }
           }
           
           function numberToWords(num) {
@@ -537,7 +801,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
             const remaining = feeAmount - currentFee;
             
             const remainingCell = row.cells[7];
-            remainingCell.textContent = remaining;
+            remainingCell.textContent = Math.max(0, remaining);
             
             updateTableTotals();
             updateTotalsFromSelection();
@@ -593,22 +857,35 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
             
             let tableRows = '';
             let totalDueAmount = 0;
+            let totalSubmittedAmount = 0;
+            let totalRemainingAmount = 0;
             
             if (filteredFees.length === 0) {
               document.querySelector('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">No fees found for selected months</td></tr>';
               return;
             }
             
+            // Get submitted payments from parent window
+            const submittedPayments = window.submittedPayments || {};
+            
             filteredFees.forEach((fee, index) => {
               const feeHead = feeHeads.find(fh => fh.id == fee.fee_head_id);
               const month = feeMonths.find(m => m.id == fee.month_id);
               const feeAmount = parseFloat(fee.amount);
-              totalDueAmount += feeAmount;
               
-              tableRows += '<tr><td>' + (index + 1) + '</td><td><input type="checkbox" onchange="updateTotalsFromSelection()"></td><td>' + (month?.month_name || 'Unknown') + '</td><td>' + (feeHead?.fee_head || 'Unknown') + '</td><td>' + feeAmount + '</td><td>0</td><td><input type="number" value="' + feeAmount + '" style="width:60px" onchange="calculateRemaining(this, ' + (index + 1) + '); updateTotalsFromSelection();"></td><td id="remaining-' + (index + 1) + '">0</td></tr>';
+              // Check for submitted payments
+              const paymentKey = (month?.month_name || '') + '_' + (feeHead?.fee_head || '');
+              const submittedAmount = submittedPayments[paymentKey] || 0;
+              const remainingAmount = Math.max(0, feeAmount - submittedAmount);
+              
+              totalDueAmount += feeAmount;
+              totalSubmittedAmount += submittedAmount;
+              totalRemainingAmount += remainingAmount;
+              
+              tableRows += '<tr><td>' + (index + 1) + '</td><td><input type="checkbox" onchange="updateTotalsFromSelection()"></td><td>' + (month?.month_name || 'Unknown') + '</td><td>' + (feeHead?.fee_head || 'Unknown') + '</td><td>' + feeAmount + '</td><td>' + submittedAmount + '</td><td><input type="number" value="' + remainingAmount + '" style="width:60px" onchange="calculateRemaining(this, ' + (index + 1) + '); updateTotalsFromSelection();"></td><td id="remaining-' + (index + 1) + '">0</td></tr>';
             });
             
-            tableRows += '<tr style="font-weight:bold"><td colspan="4">Total Fees :</td><td>' + totalDueAmount + '</td><td>0</td><td id="total-current">' + totalDueAmount + '</td><td id="total-remaining">0</td></tr>';
+            tableRows += '<tr style="font-weight:bold"><td colspan="4">Total Fees :</td><td>' + totalDueAmount + '</td><td>' + totalSubmittedAmount + '</td><td id="total-current">' + totalRemainingAmount + '</td><td id="total-remaining">' + totalRemainingAmount + '</td></tr>';
             
             document.querySelector('tbody').innerHTML = tableRows;
             
@@ -693,14 +970,63 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
             updateTotalWithDiscount();
           }
           
+          function updateTableAfterPayment(selectedFees) {
+            // Update table rows to reflect the payment
+            const feeRows = document.querySelectorAll('tbody tr:not(:last-child)');
+            
+            feeRows.forEach((row, index) => {
+              const checkbox = row.querySelector('input[type="checkbox"]');
+              if (checkbox && checkbox.checked) {
+                const month = row.cells[2].textContent;
+                const feeHead = row.cells[3].textContent;
+                const currentFeeInput = row.querySelector('input[type="number"]');
+                const currentAmount = parseFloat(currentFeeInput.value) || 0;
+                
+                // Update Fees Submitted column (index 5)
+                const feesSubmittedCell = row.cells[5];
+                const currentSubmitted = parseFloat(feesSubmittedCell.textContent) || 0;
+                const newSubmitted = currentSubmitted + currentAmount;
+                feesSubmittedCell.textContent = newSubmitted;
+                
+                // Update Amount Remaining column (index 7)
+                const feeAmount = parseFloat(row.cells[4].textContent) || 0;
+                const newRemaining = feeAmount - newSubmitted;
+                const remainingCell = row.cells[7];
+                remainingCell.textContent = Math.max(0, newRemaining);
+                
+                // Reset Current Fees input to 0 and set max to remaining amount
+                currentFeeInput.value = '0';
+                currentFeeInput.max = Math.max(0, newRemaining);
+                
+                // Uncheck the checkbox
+                checkbox.checked = false;
+              }
+            });
+            
+            // Update totals
+            updateTableTotals();
+            updateTotalsFromSelection();
+            
+            // Update parent window's submitted payments
+            if (window.opener && window.opener.loadSubmittedPayments) {
+              window.opener.loadSubmittedPayments();
+            }
+          }
+          
           function updateReceiptNumber() {
             // This function can be used to update receipt number in real-time if needed
           }
         </script>
       </body>
       </html>
-    `);
-    popup.document.close();
+      `);
+      popup.document.close();
+    };
+    
+    // Fallback: write immediately if popup is already loaded
+    if (popup.document && popup.document.readyState === 'complete') {
+      popup.onload();
+    }
   };
 
   const submitFeePayment = async () => {
@@ -949,34 +1275,48 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">SlNo.</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Select All</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Fee Instalment</th>
                   <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Fee Head</th>
-                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Month</th>
-                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Due Amount</th>
-                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Payment Amount</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Fee Amount</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Fees Submitted</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Current Fees</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Amount Remaining</th>
                 </tr>
               </thead>
               <tbody>
-                {studentFees.map((fee) => {
+                {studentFees.map((fee, index) => {
                   const feeHead = feeHeads.find(fh => fh.id == fee.fee_head_id);
                   const month = feeMonths.find(m => m.id == fee.month_id);
                   const paymentKey = `${fee.fee_head_id}_${fee.month_id}`;
+                  const submittedKey = (month?.month_name || '') + '_' + (feeHead?.fee_head || '');
+                  const submittedAmount = submittedPayments[submittedKey] || 0;
+                  const receivedAmount = feeReceived[submittedKey] || 0;
+                  const remainingAmount = Math.max(0, parseFloat(fee.amount) - receivedAmount);
                   
                   return (
                     <tr key={fee.id} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 px-2 py-2 text-xs">{feeHead?.fee_head || 'Unknown'}</td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">{index + 1}</td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                        <input type="checkbox" className="fee-checkbox" />
+                      </td>
                       <td className="border border-gray-300 px-2 py-2 text-xs text-center">{month?.month_name || 'Unknown'}</td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs">{feeHead?.fee_head || 'Unknown'}</td>
                       <td className="border border-gray-300 px-2 py-2 text-xs text-center">Rs. {parseFloat(fee.amount).toFixed(2)}</td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">Rs. {submittedAmount.toFixed(2)}</td>
                       <td className="border border-gray-300 px-1 py-1 text-xs text-center">
                         <input 
                           type="number" 
                           min="0"
-                          max={fee.amount}
+                          max={remainingAmount}
                           value={paymentAmounts[paymentKey] || ''}
                           onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [paymentKey]: e.target.value }))}
                           className="w-full border border-gray-200 text-xs text-center focus:outline-none focus:border-blue-400 bg-white px-1 py-1"
                           placeholder="0"
                         />
                       </td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">Rs. {remainingAmount.toFixed(2)}</td>
                     </tr>
                   );
                 })}

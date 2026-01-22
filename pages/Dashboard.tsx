@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   CreditCard, 
@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { User } from '../types';
 import { formatCurrency } from '../constants';
+import { supabaseService } from '../lib/supabase';
 
 const data = [
   { name: 'Jan', collection: 4000, expenses: 2400 },
@@ -32,18 +33,80 @@ const data = [
 ];
 
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
-  const stats = [
-    { title: 'Total Students', value: '1,284', icon: Users, color: 'blue', change: '+12%' },
-    { title: 'Monthly Collection', value: formatCurrency(458200), icon: CreditCard, color: 'green', change: '+8.5%' },
-    { title: 'Pending Fees', value: formatCurrency(124000), icon: AlertCircle, color: 'red', change: '-2.4%' },
-    { title: 'Total Expenses', value: formatCurrency(85000), icon: TrendingUp, color: 'orange', change: '+15%' },
+  const [schoolData, setSchoolData] = useState<any>(null);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    monthlyCollection: 0,
+    pendingFees: 0,
+    totalExpenses: 0
+  });
+
+  useEffect(() => {
+    fetchSchoolData();
+    fetchDashboardStats();
+  }, []);
+
+  const fetchSchoolData = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('schools')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      setSchoolData(data);
+    } catch (e) {
+      console.error('Error fetching school data:', e);
+    }
+  };
+
+  const fetchDashboardStats = async () => {
+    try {
+      // Fetch total students
+      const { data: students, error: studentsError } = await supabaseService.supabase
+        .from('students')
+        .select('id', { count: 'exact' });
+      
+      // Fetch monthly collection from fee_payments
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const { data: payments, error: paymentsError } = await supabaseService.supabase
+        .from('fee_payments')
+        .select('amount')
+        .gte('created_at', currentMonth + '-01')
+        .lt('created_at', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString());
+      
+      // Fetch pending fees (remaining amounts)
+      const { data: pending, error: pendingError } = await supabaseService.supabase
+        .from('fee_payments')
+        .select('remaining_amount')
+        .gt('remaining_amount', 0);
+      
+      const monthlyCollection = payments?.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0;
+      const pendingFees = pending?.reduce((sum, p) => sum + parseFloat(p.remaining_amount || 0), 0) || 0;
+      
+      setStats({
+        totalStudents: students?.length || 0,
+        monthlyCollection,
+        pendingFees,
+        totalExpenses: monthlyCollection * 0.3 // Estimate expenses as 30% of collection
+      });
+    } catch (e) {
+      console.error('Error fetching dashboard stats:', e);
+    }
+  };
+  const statsData = [
+    { title: 'Total Students', value: stats.totalStudents.toString(), icon: Users, color: 'blue', change: '+12%' },
+    { title: 'Monthly Collection', value: formatCurrency(stats.monthlyCollection), icon: CreditCard, color: 'green', change: '+8.5%' },
+    { title: 'Pending Fees', value: formatCurrency(stats.pendingFees), icon: AlertCircle, color: 'red', change: '-2.4%' },
+    { title: 'Total Expenses', value: formatCurrency(stats.totalExpenses), icon: TrendingUp, color: 'orange', change: '+15%' },
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.username}!</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome to {schoolData?.school_name || 'School'}, {user.username}!</h1>
           <p className="text-gray-500">Here's an overview of the school performance today.</p>
         </div>
         <div className="flex gap-2">
@@ -58,7 +121,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
+        {statsData.map((stat, i) => (
           <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
             <div className="flex items-start justify-between">
               <div className={`p-3 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>

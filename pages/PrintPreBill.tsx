@@ -110,7 +110,7 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
       loadExistingFees();
       loadPreviousDues();
     }
-  }, [students, selectedMonths]);
+  }, [students, selectedMonths, feeHeads]);
 
   const loadPreviousDues = async () => {
     try {
@@ -119,33 +119,19 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
         return;
       }
       
-      const selectedMonthIds = Object.keys(selectedMonths).filter(monthId => selectedMonths[monthId]);
-      if (selectedMonthIds.length === 0) {
-        setPreviousDues({});
-        return;
-      }
-      
-      const minSelectedMonth = Math.min(...selectedMonthIds.map(id => parseInt(id)));
-      const previousMonthIds = feeMonths.filter(m => m.id < minSelectedMonth).map(m => m.id);
-      
-      if (previousMonthIds.length === 0) {
-        setPreviousDues({});
-        return;
-      }
-      
       const studentIds = students.map(s => s.id);
       const { data, error } = await supabaseService.supabase
-        .from('student_variable_fees')
-        .select('*')
+        .from('fee_payments')
+        .select('student_id, remaining_amount')
         .in('student_id', studentIds)
-        .in('month_id', previousMonthIds);
+        .gt('remaining_amount', 0);
       
       if (error) throw error;
       
       const dues = {};
-      data?.forEach(fee => {
-        if (!dues[fee.student_id]) dues[fee.student_id] = 0;
-        dues[fee.student_id] += parseFloat(fee.amount);
+      data?.forEach(payment => {
+        if (!dues[payment.student_id]) dues[payment.student_id] = 0;
+        dues[payment.student_id] += parseFloat(payment.remaining_amount || 0);
       });
       
       setPreviousDues(dues);
@@ -258,6 +244,7 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
         return;
       }
       
+      // Get student variable fees
       const { data, error } = await supabaseService.supabase
         .from('student_variable_fees')
         .select('*')
@@ -266,13 +253,39 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
       
       if (error) throw error;
       
+      // Get paid fees from fee_payments table
+      const selectedMonthNames = feeMonths.filter(m => selectedMonthIds.includes(m.id.toString())).map(m => m.month_name);
+      const { data: paidFees } = await supabaseService.supabase
+        .from('fee_payments')
+        .select('student_id, month_name, fee_head')
+        .in('student_id', studentIds)
+        .in('month_name', selectedMonthNames);
+      
+      // Create set of paid month-fee combinations
+      const paidCombinations = new Set();
+      paidFees?.forEach(payment => {
+        const key = `${payment.student_id}_${payment.month_name}_${payment.fee_head}`;
+        paidCombinations.add(key);
+      });
+      
       const existingFees = {};
       data?.forEach(fee => {
-        if (!existingFees[fee.student_id]) existingFees[fee.student_id] = {};
-        if (!existingFees[fee.student_id][fee.fee_head_id]) {
-          existingFees[fee.student_id][fee.fee_head_id] = 0;
+        const feeHeadObj = feeHeads.find(fh => fh.id == fee.fee_head_id);
+        const monthObj = feeMonths.find(m => m.id == fee.month_id);
+        
+        if (feeHeadObj && monthObj) {
+          // Check if this month-fee combination is paid
+          const combinationKey = `${fee.student_id}_${monthObj.month_name}_${feeHeadObj.fee_head}`;
+          
+          // Only include if NOT paid
+          if (!paidCombinations.has(combinationKey)) {
+            if (!existingFees[fee.student_id]) existingFees[fee.student_id] = {};
+            if (!existingFees[fee.student_id][fee.fee_head_id]) {
+              existingFees[fee.student_id][fee.fee_head_id] = 0;
+            }
+            existingFees[fee.student_id][fee.fee_head_id] += parseFloat(fee.amount);
+          }
         }
-        existingFees[fee.student_id][fee.fee_head_id] += parseFloat(fee.amount);
       });
       
       // Convert totals back to strings
@@ -288,31 +301,100 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  const printPreBill = () => {
+  const printPreBill = async () => {
     const selectedStudentsList = students.filter(student => selectedStudents[student.id]);
-    const selectedMonthNames = feeMonths.filter(month => selectedMonths[month.id]).map(m => m.month_name).join(', ');
     
     if (selectedStudentsList.length === 0) {
       alert('Please select at least one student');
       return;
     }
     
-    const printWindow = window.open('', '_blank');
+    // Ensure school details are loaded
+    let currentSchoolDetails = schoolDetails;
+    if (!currentSchoolDetails.school_name) {
+      try {
+        const { data, error } = await supabaseService.supabase
+          .from('schools')
+          .select('*')
+          .eq('school_name', form.school)
+          .single();
+        
+        if (!error && data) {
+          currentSchoolDetails = data;
+        }
+      } catch (e) {
+        console.error('Error fetching school details:', e);
+        currentSchoolDetails = {};
+      }
+    }
+    
+    // Get paid fees for all selected students
+    const selectedMonthNames = feeMonths.filter(m => selectedMonths[m.id]).map(m => m.month_name);
+    const studentIds = selectedStudentsList.map(s => s.id);
+    
+    const { data: allPaidFees } = await supabaseService.supabase
+      .from('fee_payments')
+      .select('student_id, month_name, fee_head')
+      .in('student_id', studentIds)
+      .in('month_name', selectedMonthNames);
     
     const billsHtml = selectedStudentsList.map(student => {
-      const currentFee = Object.values(studentFees[student.id] || {}).reduce((sum, amount) => sum + parseFloat(amount || '0'), 0);
+      // Get paid combinations for this student
+      const studentPaidFees = allPaidFees?.filter(p => p.student_id === student.id) || [];
+      const paidCombinations = new Set();
+      studentPaidFees.forEach(payment => {
+        const key = `${payment.student_id}_${payment.month_name}_${payment.fee_head}`;
+        paidCombinations.add(key);
+      });
+      
+      // Calculate unpaid months for each fee head
+      const feeRows = [];
+      let rowIndex = 0;
+      let calculatedTotal = 0;
+      
+      Object.keys(studentFees[student.id] || {}).forEach((feeHeadId) => {
+        const feeHead = feeHeads.find(fh => fh.id == feeHeadId);
+        
+        // Get unpaid months for this specific fee head
+        const unpaidMonths = feeMonths.filter(month => {
+          if (!selectedMonths[month.id]) return false;
+          const combinationKey = `${student.id}_${month.month_name}_${feeHead?.fee_head}`;
+          return !paidCombinations.has(combinationKey);
+        });
+        
+        if (unpaidMonths.length > 0) {
+          const monthNames = unpaidMonths.map(m => m.month_name).join(', ');
+          const totalAmount = parseFloat(studentFees[student.id][feeHeadId]);
+          
+          calculatedTotal += totalAmount;
+          
+          rowIndex++;
+          feeRows.push(`
+            <tr>
+              <td class='text-center'>${rowIndex}</td>
+              <td>${monthNames}</td>
+              <td>${feeHead?.fee_head || 'Fee'}</td>
+              <td class='text-right'>Rs. ${totalAmount.toFixed(0)}</td>
+            </tr>
+          `);
+        }
+      });
+      
       const previousFee = previousDues[student.id] || 0;
-      const totalAmount = previousFee + currentFee;
+      const currentFee = calculatedTotal;
+      const totalAmount = previousFee + calculatedTotal;
+      
+      const selectedMonthNames = feeMonths.filter(m => selectedMonths[m.id]).map(m => m.month_name).join(', ');
       
       return `
         <div class='bill'>
           <div class='header'>
             <div class='school-info'>
-              <img src='${schoolDetails.logo_url || '/logo.png'}' class='school-logo'>
-              <div class='school-name'>${schoolDetails.school_name || form.school}</div>
-              <div class='school-details'>${schoolDetails.address || 'School Address'}</div>
-              <div class='school-details'>Phone: ${schoolDetails.phone || 'N/A'} | Email: ${schoolDetails.email || 'N/A'}</div>
-              <div class='pan-number'>PAN: ${schoolDetails.pan_no || 'N/A'}</div>
+              <img src='${currentSchoolDetails.logo_url || '/logo.png'}' class='school-logo'>
+              <div class='school-name'>${currentSchoolDetails.school_name || form.school}</div>
+              <div class='school-details'>${currentSchoolDetails.address || 'School Address'}</div>
+              <div class='school-details'>Phone: ${currentSchoolDetails.phone || 'N/A'} | Email: ${currentSchoolDetails.email || 'N/A'}</div>
+              <div class='pan-number'>PAN: ${currentSchoolDetails.pan_no || 'N/A'}</div>
               <div class='divider'></div>
             </div>
             <div class='student-info'>
@@ -335,32 +417,23 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
               <thead>
                 <tr>
                   <th>S/No</th>
-                  <th>Description</th>
-                  <th>Amount</th>
+                  <th>MONTH</th>
+                  <th>PARTICULARS</th>
+                  <th>AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
-                ${Object.keys(studentFees[student.id] || {}).map((feeHeadId, index) => {
-                  const feeHead = feeHeads.find(fh => fh.id == feeHeadId);
-                  const amount = studentFees[student.id][feeHeadId];
-                  return `
-                    <tr>
-                      <td class='text-center'>${index + 1}</td>
-                      <td>${feeHead?.fee_head || 'Fee'}</td>
-                      <td class='text-right'>Rs. ${amount}</td>
-                    </tr>
-                  `;
-                }).join('')}
+                ${feeRows.join('')}
                 <tr>
-                  <td colspan='2' class='text-right'><strong>This Month's Total:</strong></td>
+                  <td colspan='3' class='text-right'><strong>This Month's Total:</strong></td>
                   <td class='text-right'><strong>Rs. ${currentFee.toFixed(2)}</strong></td>
                 </tr>
                 <tr>
-                  <td colspan='2' class='text-right'><strong>Previous Dues:</strong></td>
+                  <td colspan='3' class='text-right'><strong>Previous Dues:</strong></td>
                   <td class='text-right'><strong>Rs. ${previousFee.toFixed(2)}</strong></td>
                 </tr>
                 <tr>
-                  <td colspan='2' class='text-right'><strong>Total Amount:</strong></td>
+                  <td colspan='3' class='text-right'><strong>Total Amount:</strong></td>
                   <td class='text-right'><strong>Rs. ${totalAmount.toFixed(2)}</strong></td>
                 </tr>
               </tbody>
@@ -380,6 +453,8 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
         </div>
       `;
     }).join('');
+    
+    const printWindow = window.open('', '_blank');
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -493,7 +568,7 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
         <div className="p-4">
           <h3 className="text-sm font-bold text-gray-700 mb-4">Select Months</h3>
           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {feeMonths.map(month => (
+            {feeMonths.sort((a, b) => (a.month_order || 0) - (b.month_order || 0)).map(month => (
               <div key={month.id} className="flex items-center">
                 <input 
                   type="checkbox" 
@@ -550,7 +625,8 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
                   <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Roll Number</th>
                   <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Name</th>
                   <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Previous Fee Due</th>
-                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Current Fee Due</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Current Fee Due ({feeMonths.filter(month => selectedMonths[month.id]).map(m => m.month_name).join(', ')})</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Remaining Amount</th>
                   <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Total Amount</th>
                 </tr>
               </thead>
@@ -576,7 +652,8 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
                       <td className="border border-gray-300 px-2 py-2 text-xs text-center">{student.roll_no}</td>
                       <td className="border border-gray-300 px-2 py-2 text-xs">{`${student.first_name || ''} ${student.last_name || ''}`.trim()}</td>
                       <td className="border border-gray-300 px-2 py-2 text-xs text-center">{previousFee.toFixed(2)}</td>
-                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">{currentFee.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">{currentFee.toFixed(2)} ({feeMonths.filter(month => selectedMonths[month.id]).map(m => m.month_name).join(', ')})</td>
+                      <td className="border border-gray-300 px-2 py-2 text-xs text-center">{previousFee.toFixed(2)}</td>
                       <td className="border border-gray-300 px-2 py-2 text-xs text-center">{totalAmount.toFixed(2)}</td>
                     </tr>
                   );
