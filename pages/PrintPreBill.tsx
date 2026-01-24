@@ -371,7 +371,7 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
           rowIndex++;
           feeRows.push(`
             <tr>
-              <td class='text-center'>${rowIndex}</td>
+              <td class='text-center'>${rowIndex}.</td>
               <td>${monthNames}</td>
               <td>${feeHead?.fee_head || 'Fee'}</td>
               <td class='text-right'>Rs. ${totalAmount.toFixed(0)}</td>
@@ -407,7 +407,7 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
                 <tr>
                   <td><strong>Class:</strong> ${form.class}/${form.section}</td>
                   <td><strong>Roll No:</strong> ${student.roll_no}</td>
-                  <td><strong>Month:</strong> ${selectedMonthNames}</td>
+                  <td></td>
                 </tr>
               </table>
             </div>
@@ -702,7 +702,7 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
                           <tr>
                             <td><strong>Class:</strong> {form.class}/{form.section}</td>
                             <td><strong>Roll No:</strong> {student.roll_no}</td>
-                            <td><strong>Month:</strong> {selectedMonthNames}</td>
+                            <td></td>
                           </tr>
                         </tbody>
                       </table>

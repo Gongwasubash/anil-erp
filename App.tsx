@@ -13,6 +13,8 @@ import AddStudentVariableFee from './pages/AddStudentVariableFee';
 import PrintPreBill from './pages/PrintPreBill';
 import FeeSubmit from './pages/FeeSubmit';
 import DailyFeeReceiptRegister from './pages/DailyFeeReceiptRegister';
+import ManageEmployee from './pages/ManageEmployee';
+import AddEmployee from './pages/AddEmployee';
 import Login from './pages/Login';
 import { User } from './types';
 
@@ -57,6 +59,8 @@ const App: React.FC = () => {
           <Route path="/variable-fees/print_pre_bill" element={<PrintPreBill user={user} />} />
           <Route path="/variable-fees/fee_submit" element={<FeeSubmit user={user} />} />
           <Route path="/variable-fees/daily_fee_receipt_register" element={<DailyFeeReceiptRegister user={user} />} />
+          <Route path="/hr/manage_employee" element={<ManageEmployee user={user} />} />
+          <Route path="/hr/add_employee" element={<AddEmployee user={user} />} />
           <Route path="/masters/*" element={<Masters user={user} />} />
           <Route path="/admin/*" element={<Admin user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

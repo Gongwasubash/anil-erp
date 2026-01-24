@@ -92,5 +92,23 @@ export const supabaseService = {
   getExamMarks: () => supabase.from('exam_marks').select('*').order('created_at', { ascending: false }),
   createExamMarks: (data: any[]) => supabase.from('exam_marks').insert(data).select(),
   updateExamMarks: (id: string, data: any) => supabase.from('exam_marks').update(data).eq('id', id),
-  deleteExamMarks: (id: string) => supabase.from('exam_marks').delete().eq('id', id)
+  deleteExamMarks: (id: string) => supabase.from('exam_marks').delete().eq('id', id),
+  
+  // Departments
+  getDepartments: () => supabase.from('departments').select('*').order('order_no', { ascending: true }),
+  createDepartment: (data: any) => supabase.from('departments').insert(data),
+  updateDepartment: (id: string, data: any) => supabase.from('departments').update(data).eq('id', id),
+  deleteDepartment: (id: string) => supabase.from('departments').delete().eq('id', id),
+  
+  // Designations
+  getDesignations: () => supabase.from('designations').select('*, departments(department_name)').order('created_at', { ascending: false }),
+  createDesignation: (data: any) => supabase.from('designations').insert(data),
+  updateDesignation: (id: string, data: any) => supabase.from('designations').update(data).eq('id', id),
+  deleteDesignation: (id: string) => supabase.from('designations').delete().eq('id', id),
+  
+  // Employees
+  getEmployees: () => supabase.from('employees').select('*, departments(department_name), designations(designation_name)').order('created_at', { ascending: false }),
+  createEmployee: (data: any) => supabase.from('employees').insert(data),
+  updateEmployee: (id: string, data: any) => supabase.from('employees').update(data).eq('id', id),
+  deleteEmployee: (id: string) => supabase.from('employees').delete().eq('id', id)
 };

@@ -125,6 +125,23 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     email: 'anil.maxconnect@gmail.com',
     websiteUrl: ''
   });
+  const [departments, setDepartments] = useState([]);
+  const [departmentFormData, setDepartmentFormData] = useState({
+    orderNo: 1,
+    departmentName: '',
+    shortName: '',
+    aboutDepartment: ''
+  });
+  const [editingDepartment, setEditingDepartment] = useState<any>(null);
+  const [showEditDepartment, setShowEditDepartment] = useState(false);
+  const [designations, setDesignations] = useState([]);
+  const [designationFormData, setDesignationFormData] = useState({
+    departmentId: '',
+    designationName: '',
+    shortName: ''
+  });
+  const [editingDesignation, setEditingDesignation] = useState<any>(null);
+  const [showEditDesignation, setShowEditDesignation] = useState(false);
 
   // Load sections from Supabase on component mount
   useEffect(() => {
@@ -138,6 +155,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     loadSubjects();
     loadSubjectAssignments();
     loadStudents();
+    loadDepartments();
+    loadDesignations();
     console.log('Loading master data...');
   }, []);
 
@@ -573,6 +592,171 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     } catch (error) {
       console.error('Error loading students:', error);
       setStudents([]);
+    }
+  };
+
+  const loadDepartments = async () => {
+    const { data, error } = await supabaseService.getDepartments();
+    if (error) {
+      console.error('Error loading departments:', error);
+    } else {
+      setDepartments(data || []);
+    }
+  };
+
+  const handleCreateDepartment = async () => {
+    setLoading(true);
+    const departmentData = {
+      order_no: departmentFormData.orderNo,
+      department_name: departmentFormData.departmentName,
+      short_name: departmentFormData.shortName,
+      about_department: departmentFormData.aboutDepartment
+    };
+    
+    const { data, error } = await supabaseService.createDepartment(departmentData);
+    
+    if (error) {
+      console.error('Error creating department:', error);
+      alert(`Error creating department: ${error.message}`);
+    } else {
+      alert('Department created successfully!');
+      setDepartmentFormData({ orderNo: 1, departmentName: '', shortName: '', aboutDepartment: '' });
+      loadDepartments();
+    }
+    setLoading(false);
+  };
+
+  const handleEditDepartment = (department: any) => {
+    setEditingDepartment(department);
+    setDepartmentFormData({
+      orderNo: department.order_no,
+      departmentName: department.department_name,
+      shortName: department.short_name,
+      aboutDepartment: department.about_department || ''
+    });
+    setShowEditDepartment(true);
+  };
+
+  const handleUpdateDepartment = async () => {
+    if (!editingDepartment) return;
+    
+    setLoading(true);
+    const departmentData = {
+      order_no: departmentFormData.orderNo,
+      department_name: departmentFormData.departmentName,
+      short_name: departmentFormData.shortName,
+      about_department: departmentFormData.aboutDepartment
+    };
+    
+    const { data, error } = await supabaseService.updateDepartment(editingDepartment.id, departmentData);
+    
+    if (error) {
+      console.error('Error updating department:', error);
+      alert(`Error updating department: ${error.message}`);
+    } else {
+      alert('Department updated successfully!');
+      setShowEditDepartment(false);
+      setEditingDepartment(null);
+      setDepartmentFormData({ orderNo: 1, departmentName: '', shortName: '', aboutDepartment: '' });
+      loadDepartments();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteDepartment = async (department: any) => {
+    if (window.confirm(`Are you sure you want to delete "${department.department_name}"?`)) {
+      setLoading(true);
+      const { error } = await supabaseService.deleteDepartment(department.id);
+      
+      if (error) {
+        console.error('Error deleting department:', error);
+        alert(`Error deleting department: ${error.message}`);
+      } else {
+        alert('Department deleted successfully!');
+        loadDepartments();
+      }
+      setLoading(false);
+    }
+  };
+
+  const loadDesignations = async () => {
+    const { data, error } = await supabaseService.getDesignations();
+    if (error) {
+      console.error('Error loading designations:', error);
+    } else {
+      setDesignations(data || []);
+    }
+  };
+
+  const handleCreateDesignation = async () => {
+    setLoading(true);
+    const designationData = {
+      department_id: designationFormData.departmentId,
+      designation_name: designationFormData.designationName,
+      short_name: designationFormData.shortName
+    };
+    
+    const { data, error } = await supabaseService.createDesignation(designationData);
+    
+    if (error) {
+      console.error('Error creating designation:', error);
+      alert(`Error creating designation: ${error.message}`);
+    } else {
+      alert('Designation created successfully!');
+      setDesignationFormData({ departmentId: '', designationName: '', shortName: '' });
+      loadDesignations();
+    }
+    setLoading(false);
+  };
+
+  const handleEditDesignation = (designation: any) => {
+    setEditingDesignation(designation);
+    setDesignationFormData({
+      departmentId: designation.department_id,
+      designationName: designation.designation_name,
+      shortName: designation.short_name
+    });
+    setShowEditDesignation(true);
+  };
+
+  const handleUpdateDesignation = async () => {
+    if (!editingDesignation) return;
+    
+    setLoading(true);
+    const designationData = {
+      department_id: designationFormData.departmentId,
+      designation_name: designationFormData.designationName,
+      short_name: designationFormData.shortName
+    };
+    
+    const { data, error } = await supabaseService.updateDesignation(editingDesignation.id, designationData);
+    
+    if (error) {
+      console.error('Error updating designation:', error);
+      alert(`Error updating designation: ${error.message}`);
+    } else {
+      alert('Designation updated successfully!');
+      setShowEditDesignation(false);
+      setEditingDesignation(null);
+      setDesignationFormData({ departmentId: '', designationName: '', shortName: '' });
+      loadDesignations();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteDesignation = async (designation: any) => {
+    if (window.confirm(`Are you sure you want to delete "${designation.designation_name}"?`)) {
+      setLoading(true);
+      const { error } = await supabaseService.deleteDesignation(designation.id);
+      
+      if (error) {
+        console.error('Error deleting designation:', error);
+        alert(`Error deleting designation: ${error.message}`);
+      } else {
+        alert('Designation deleted successfully!');
+        loadDesignations();
+      }
+      setLoading(false);
     }
   };
 
@@ -3127,12 +3311,403 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
             )}
           </div>
         );
-      default:
+      case 'manage_department':
+        if (showEditDepartment && editingDepartment) {
+          return (
+            <div className="w-full">
+              <div className="mb-6 relative pb-4">
+                <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                  Edit Department
+                </h2>
+                <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+              </div>
+
+              <div className="bg-white border border-gray-300 mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+                  <div className="flex items-center border-r h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Order no*:</div>
+                    <div className="flex-1 px-2">
+                      <input 
+                        type="number"
+                        value={departmentFormData.orderNo}
+                        onChange={(e) => setDepartmentFormData(prev => ({ ...prev, orderNo: parseInt(e.target.value) || 1 }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Department*:</div>
+                    <div className="flex-1 px-2">
+                      <input 
+                        type="text"
+                        value={departmentFormData.departmentName}
+                        onChange={(e) => setDepartmentFormData(prev => ({ ...prev, departmentName: e.target.value }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+                  <div className="flex items-center border-r h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">ShortName*:</div>
+                    <div className="flex-1 px-2">
+                      <input 
+                        type="text"
+                        value={departmentFormData.shortName}
+                        onChange={(e) => setDepartmentFormData(prev => ({ ...prev, shortName: e.target.value }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">About*:</div>
+                    <div className="flex-1 px-2">
+                      <input 
+                        type="text"
+                        value={departmentFormData.aboutDepartment}
+                        onChange={(e) => setDepartmentFormData(prev => ({ ...prev, aboutDepartment: e.target.value }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+                  <button 
+                    onClick={handleUpdateDepartment}
+                    disabled={loading}
+                    className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                  >
+                    {loading ? 'UPDATING...' : 'UPDATE'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowEditDepartment(false);
+                      setEditingDepartment(null);
+                      setDepartmentFormData({ orderNo: 1, departmentName: '', shortName: '', aboutDepartment: '' });
+                    }}
+                    className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Masters Management</h2>
-            <div className="bg-white rounded-lg shadow p-6">
-              <p className="text-gray-600">Select a module from the sidebar to get started.</p>
+          <div className="w-full">
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Manage Department
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="bg-white border border-gray-300 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+                <div className="flex items-center border-r h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Order no*:</div>
+                  <div className="flex-1 px-2">
+                    <input 
+                      type="number"
+                      value={departmentFormData.orderNo}
+                      onChange={(e) => setDepartmentFormData(prev => ({ ...prev, orderNo: parseInt(e.target.value) || 1 }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      placeholder="Enter order number"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Department*:</div>
+                  <div className="flex-1 px-2">
+                    <input 
+                      type="text"
+                      value={departmentFormData.departmentName}
+                      onChange={(e) => setDepartmentFormData(prev => ({ ...prev, departmentName: e.target.value }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      placeholder="Enter department name"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+                <div className="flex items-center border-r h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">ShortName*:</div>
+                  <div className="flex-1 px-2">
+                    <input 
+                      type="text"
+                      value={departmentFormData.shortName}
+                      onChange={(e) => setDepartmentFormData(prev => ({ ...prev, shortName: e.target.value }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      placeholder="Enter short name"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">About*:</div>
+                  <div className="flex-1 px-2">
+                    <input 
+                      type="text"
+                      value={departmentFormData.aboutDepartment}
+                      onChange={(e) => setDepartmentFormData(prev => ({ ...prev, aboutDepartment: e.target.value }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      placeholder="Enter department description"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+                <button 
+                  onClick={handleCreateDepartment}
+                  disabled={loading}
+                  className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                >
+                  {loading ? 'ADDING...' : 'ADD'}
+                </button>
+                <button 
+                  onClick={() => setDepartmentFormData({ orderNo: 1, departmentName: '', shortName: '', aboutDepartment: '' })}
+                  className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-300 mb-6">
+              <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-700">Department Records</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Order No</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">DepartmentName</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">ShortName</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departments.map((department: any) => (
+                      <tr key={department.id} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">{department.order_no}</td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs">{department.department_name}</td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">{department.short_name}</td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                          <button 
+                            onClick={() => handleEditDepartment(department)}
+                            className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" 
+                            title="Edit"
+                          >
+                            <Edit size={14} />
+                          </button>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                          <button 
+                            onClick={() => handleDeleteDepartment(department)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all" 
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      case 'manage_designation':
+        if (showEditDesignation && editingDesignation) {
+          return (
+            <div className="w-full">
+              <div className="mb-6 relative pb-4">
+                <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                  Edit Designation
+                </h2>
+                <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+              </div>
+
+              <div className="bg-white border border-gray-300 mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 border-b">
+                  <div className="flex items-center border-r h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Department*:</div>
+                    <div className="flex-1 px-2">
+                      <select 
+                        value={designationFormData.departmentId}
+                        onChange={(e) => setDesignationFormData(prev => ({ ...prev, departmentId: e.target.value }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      >
+                        <option value="">--- Select ---</option>
+                        {departments.map((dept: any) => (
+                          <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center border-r h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Designation*:</div>
+                    <div className="flex-1 px-2">
+                      <input 
+                        type="text"
+                        value={designationFormData.designationName}
+                        onChange={(e) => setDesignationFormData(prev => ({ ...prev, designationName: e.target.value }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center h-10 bg-white">
+                    <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Shortname*:</div>
+                    <div className="flex-1 px-2">
+                      <input 
+                        type="text"
+                        value={designationFormData.shortName}
+                        onChange={(e) => setDesignationFormData(prev => ({ ...prev, shortName: e.target.value }))}
+                        className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+                  <button 
+                    onClick={handleUpdateDesignation}
+                    disabled={loading}
+                    className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                  >
+                    {loading ? 'UPDATING...' : 'UPDATE'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowEditDesignation(false);
+                      setEditingDesignation(null);
+                      setDesignationFormData({ departmentId: '', designationName: '', shortName: '' });
+                    }}
+                    className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="w-full">
+            <div className="mb-6 relative pb-4">
+              <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                Manage Designation
+              </h2>
+              <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+            </div>
+
+            <div className="bg-white border border-gray-300 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 border-b">
+                <div className="flex items-center border-r h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Department*:</div>
+                  <div className="flex-1 px-2">
+                    <select 
+                      value={designationFormData.departmentId}
+                      onChange={(e) => setDesignationFormData(prev => ({ ...prev, departmentId: e.target.value }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                    >
+                      <option value="">--- Select ---</option>
+                      {departments.map((dept: any) => (
+                        <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center border-r h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Designation*:</div>
+                  <div className="flex-1 px-2">
+                    <input 
+                      type="text"
+                      value={designationFormData.designationName}
+                      onChange={(e) => setDesignationFormData(prev => ({ ...prev, designationName: e.target.value }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      placeholder="Enter designation"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center h-10 bg-white">
+                  <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Shortname*:</div>
+                  <div className="flex-1 px-2">
+                    <input 
+                      type="text"
+                      value={designationFormData.shortName}
+                      onChange={(e) => setDesignationFormData(prev => ({ ...prev, shortName: e.target.value }))}
+                      className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                      placeholder="Enter short name"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+                <button 
+                  onClick={handleCreateDesignation}
+                  disabled={loading}
+                  className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                >
+                  {loading ? 'ADDING...' : 'ADD'}
+                </button>
+                <button 
+                  onClick={() => setDesignationFormData({ departmentId: '', designationName: '', shortName: '' })}
+                  className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-300 mb-6">
+              <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-700">Search Designation:-</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Department</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Designation</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">ShortName</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {designations.map((designation: any) => (
+                      <tr key={designation.id} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-2 py-2 text-xs">{designation.departments?.department_name || 'Administrative'}</td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs">{designation.designation_name}</td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">{designation.short_name}</td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                          <button 
+                            onClick={() => handleEditDesignation(designation)}
+                            className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" 
+                            title="Edit"
+                          >
+                            <Edit size={14} />
+                          </button>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                          <button 
+                            onClick={() => handleDeleteDesignation(designation)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all" 
+                            title="Remove"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );

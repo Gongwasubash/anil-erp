@@ -22,5 +22,8 @@ CREATE TABLE IF NOT EXISTS fee_payments (
 
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_fee_payments_student_id ON fee_payments(student_id);
-CREATE INDEX IF NOT EXISTS idx_fee_payments_receipt_no ON fee_payments(receipt_no);
+CREATE INDEX IF NOT EXISTS idx_fee_payments_receipt_no ON fee_payments(receipt_no);git add .
+git commit -m "Add Submit Fee functionality with database integration and receipt generation"
+git push
+
 CREATE INDEX IF NOT EXISTS idx_fee_payments_receipt_date ON fee_payments(receipt_date);

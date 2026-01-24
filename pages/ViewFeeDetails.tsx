@@ -19,21 +19,22 @@ const BlueBtn = ({ children, onClick, color = "bg-[#3498db]", disabled = false }
   </button>
 );
 
-const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
+const ViewFeeDetails: React.FC<{ user: User }> = ({ user }) => {
   const [form, setForm] = useState({
     school: 'JHOR HIGH SCHOOL',
     batch: '2080',
     class: '1',
     section: 'A',
-    fromDate: '',
-    toDate: ''
+    studentId: '',
+    receiptNo: ''
   });
 
   const [schools, setSchools] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
-  const [feePayments, setFeePayments] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [feeDetails, setFeeDetails] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [previousDues, setPreviousDues] = useState<{[studentId: string]: number}>({});
 
@@ -69,7 +70,31 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
     fetchBatches();
     fetchClasses();
     fetchSections();
+    
+    // Check for URL parameters
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+    const studentId = urlParams.get('studentId');
+    const receiptNo = urlParams.get('receiptNo');
+    
+    if (studentId || receiptNo) {
+      setForm(prev => ({
+        ...prev,
+        studentId: studentId || '',
+        receiptNo: receiptNo || ''
+      }));
+      
+      // Auto-search if parameters are provided
+      setTimeout(() => {
+        fetchFeeDetails();
+      }, 1000);
+    }
   }, []);
+
+  useEffect(() => {
+    if (form.school && form.batch && form.class && form.section) {
+      fetchStudents();
+    }
+  }, [form.school, form.batch, form.class, form.section]);
 
   const fetchSchools = async () => {
     try {
@@ -111,7 +136,25 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  const fetchFeePayments = async () => {
+  const fetchStudents = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('students')
+        .select('id, first_name, last_name, roll_no, father_name')
+        .eq('school', form.school)
+        .eq('batch_no', form.batch)
+        .eq('class', form.class)
+        .eq('section', form.section)
+        .order('roll_no');
+      
+      if (error) throw error;
+      setStudents(data || []);
+    } catch (e) {
+      console.error('Error fetching students:', e);
+    }
+  };
+
+  const fetchFeeDetails = async () => {
     try {
       setLoading(true);
       
@@ -138,12 +181,12 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
         query = query.in('student_id', studentIds);
       }
       
-      if (form.fromDate) {
-        query = query.gte('created_at', form.fromDate);
+      if (form.studentId) {
+        query = query.eq('student_id', form.studentId);
       }
       
-      if (form.toDate) {
-        query = query.lte('created_at', form.toDate + 'T23:59:59');
+      if (form.receiptNo) {
+        query = query.eq('receipt_no', form.receiptNo);
       }
       
       const { data: payments, error: paymentsError } = await query;
@@ -152,7 +195,6 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
       
       const paymentsWithStudents = payments?.map(payment => {
         const student = students?.find(s => s.id === payment.student_id);
-        console.log('Payment student_id:', payment.student_id, 'Found student:', student);
         return {
           ...payment,
           student_name: student ? `${student.first_name} ${student.last_name}` : 'Unknown',
@@ -161,54 +203,59 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
         };
       }) || [];
       
-      const groupedPayments = [];
-      const timeGroups = {};
-      
+      // Group by student
+      const studentGroups = {};
       paymentsWithStudents.forEach(payment => {
-        const timeKey = new Date(payment.created_at).toISOString().slice(0, 19);
-        if (!timeGroups[timeKey]) {
-          timeGroups[timeKey] = {
+        const studentKey = payment.student_id;
+        if (!studentGroups[studentKey]) {
+          studentGroups[studentKey] = {
             ...payment,
-            fee_details: [{
-              fee_head: payment.fee_head,
-              month_name: payment.month_name,
-              amount: parseFloat(payment.amount || 0)
-            }],
-            total_amount: parseFloat(payment.amount || 0)
+            fee_details: [],
+            receipt_nos: [],
+            payment_dates: [],
+            amount: 0,
+            total_discount: 0,
+            total_other: 0,
+            total_fine: 0,
+            total_paid: 0,
+            total_remaining: 0
           };
-        } else {
-          timeGroups[timeKey].fee_details.push({
-            fee_head: payment.fee_head,
-            month_name: payment.month_name,
-            amount: parseFloat(payment.amount || 0)
-          });
-          timeGroups[timeKey].total_amount += parseFloat(payment.amount || 0);
         }
-      });
-      
-      Object.values(timeGroups).forEach(group => {
-        groupedPayments.push({
-          ...group,
-          fee_details: group.fee_details,
-          amount: group.total_amount
+        
+        studentGroups[studentKey].fee_details.push({
+          fee_head: 'Fee Payment',
+          month_name: 'N/A',
+          amount: parseFloat(payment.total_amount || 0)
         });
+        
+        if (payment.receipt_no && !studentGroups[studentKey].receipt_nos.includes(payment.receipt_no)) {
+          studentGroups[studentKey].receipt_nos.push(payment.receipt_no);
+        }
+        
+        const paymentDate = payment.receipt_date ? new Date(payment.receipt_date).toLocaleDateString('en-GB') : new Date(payment.created_at).toLocaleDateString('en-GB');
+        if (!studentGroups[studentKey].payment_dates.includes(paymentDate)) {
+          studentGroups[studentKey].payment_dates.push(paymentDate);
+        }
+        
+        studentGroups[studentKey].amount += parseFloat(payment.total_amount || 0);
+        studentGroups[studentKey].total_discount += parseFloat(payment.discount_amount || 0);
+        studentGroups[studentKey].total_other += parseFloat(payment.other_amount || 0);
+        studentGroups[studentKey].total_fine += parseFloat(payment.fine_amount || 0);
+        studentGroups[studentKey].total_paid += parseFloat(payment.paid_amount || 0);
+        studentGroups[studentKey].total_remaining += parseFloat(payment.remaining_amount || 0);
       });
       
-      setFeePayments(groupedPayments);
+      const groupedPayments = Object.values(studentGroups);
+      setFeeDetails(groupedPayments);
     } catch (e) {
-      console.error('Error fetching fee payments:', e);
+      console.error('Error fetching fee details:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const getTotalAmount = () => {
-    return feePayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
-  };
-
   const printFeeReceipt = async (payment: any) => {
     try {
-      // Get school details
       const { data: schoolData } = await supabaseService.supabase
         .from('schools')
         .select('*')
@@ -216,26 +263,12 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
         .single();
       
       const school = schoolData || {};
-      const totalAmount = parseFloat(payment.amount || 0);
+      const totalAmount = parseFloat(payment.total_amount || 0);
       const fineAmount = parseFloat(payment.fine_amount || 0);
       const discount = parseFloat(payment.discount_amount || 0);
       const otherAmount = parseFloat(payment.other_amount || 0);
-      
-      // Group fees by fee head
-      const feeGroups = {};
-      payment.fee_details?.forEach(detail => {
-        if (!feeGroups[detail.fee_head]) {
-          feeGroups[detail.fee_head] = { months: [], totalAmount: 0 };
-        }
-        if (!feeGroups[detail.fee_head].months.includes(detail.month_name)) {
-          feeGroups[detail.fee_head].months.push(detail.month_name);
-        }
-        feeGroups[detail.fee_head].totalAmount += detail.amount;
-      });
-      
-      const receiptRows = Object.entries(feeGroups).map(([feeHead, data], index) => 
-        `<tr><td>${index + 1}.</td><td>${data.months.join(', ')}</td><td>${feeHead}</td><td class="moveright">Rs. ${data.totalAmount}</td></tr>`
-      ).join('');
+      const paidAmount = parseFloat(payment.paid_amount || 0);
+      const remainingAmount = parseFloat(payment.remaining_amount || 0);
       
       const receiptWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes,resizable=yes');
       
@@ -331,36 +364,43 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
                   <thead>
                     <tr>
                       <th>S/No</th>
-                      <th>MONTH</th>
                       <th>PARTICULARS</th>
                       <th>AMOUNT</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${receiptRows}
                     <tr>
-                      <td colspan="3" class="moveright">Total Amount:</td>
+                      <td>1.</td>
+                      <td>Fee Payment</td>
                       <td class="moveright">Rs. ${totalAmount}</td>
                     </tr>
                     <tr>
-                      <td colspan="3" class="moveright">Other Amount:</td>
+                      <td colspan="2" class="moveright">Total Amount:</td>
+                      <td class="moveright">Rs. ${totalAmount}</td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" class="moveright">Other Amount:</td>
                       <td class="moveright">Rs. ${otherAmount}</td>
                     </tr>
                     <tr>
-                      <td colspan="3" class="moveright">Fine Amount:</td>
+                      <td colspan="2" class="moveright">Fine Amount:</td>
                       <td class="moveright">Rs. ${fineAmount}</td>
                     </tr>
                     <tr>
-                      <td colspan="3" class="moveright">Net Payable Amount:</td>
+                      <td colspan="2" class="moveright">Discount:</td>
+                      <td class="moveright">Rs. ${discount}</td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" class="moveright">Net Payable Amount:</td>
                       <td class="moveright">Rs. ${totalAmount + otherAmount + fineAmount - discount}</td>
                     </tr>
                     <tr>
-                      <td colspan="3" class="moveright">Paid Amount:</td>
-                      <td class="moveright">Rs. ${totalAmount}</td>
+                      <td colspan="2" class="moveright">Paid Amount:</td>
+                      <td class="moveright">Rs. ${paidAmount}</td>
                     </tr>
                     <tr>
-                      <td colspan="3" class="moveright">Remaining Amount:</td>
-                      <td class="moveright">Rs. ${parseFloat(payment.remaining_amount || 0)}</td>
+                      <td colspan="2" class="moveright">Remaining Amount:</td>
+                      <td class="moveright">Rs. ${remainingAmount}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -391,7 +431,7 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
     <div className="w-full">
       <div className="mb-6 relative pb-4">
         <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
-          Daily Fee Receipt Register
+          View Fee Details
         </h2>
         <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
       </div>
@@ -445,41 +485,44 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
           <div className="flex items-center border-r h-10 bg-white">
-            <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">From:</div>
+            <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Student:</div>
             <div className="flex-1 px-2">
-              <input 
-                type="date" 
-                value={form.fromDate}
-                onChange={(e) => setForm(p => ({ ...p, fromDate: e.target.value }))}
-                className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white"
-              />
+              <Select value={form.studentId} onChange={(e) => setForm(p => ({ ...p, studentId: e.target.value }))}>
+                <option value="">--- Select Student ---</option>
+                {students.map(student => (
+                  <option key={student.id} value={student.id}>
+                    {student.first_name} {student.last_name} (Roll: {student.roll_no})
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
           <div className="flex items-center h-10 bg-white">
-            <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">To:</div>
+            <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Receipt:</div>
             <div className="flex-1 px-2">
               <input 
-                type="date" 
-                value={form.toDate}
-                onChange={(e) => setForm(p => ({ ...p, toDate: e.target.value }))}
+                type="text" 
+                value={form.receiptNo}
+                onChange={(e) => setForm(p => ({ ...p, receiptNo: e.target.value }))}
+                placeholder="Enter Receipt Number"
                 className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white"
               />
             </div>
           </div>
         </div>
         <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
-          <BlueBtn onClick={fetchFeePayments} disabled={loading}>
+          <BlueBtn onClick={fetchFeeDetails} disabled={loading}>
             {loading ? 'SEARCHING...' : 'SEARCH'}
           </BlueBtn>
         </div>
       </div>
 
-      {feePayments.length > 0 && (
+      {feeDetails.length > 0 && (
         <div className="bg-white border border-gray-300 mb-6">
           <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-700">Fee Payment Records</h3>
             <div className="text-sm font-bold text-gray-700">
-              Total Records: {feePayments.length} | Total Amount: Rs. {getTotalAmount().toFixed(2)}
+              Total Records: {feeDetails.length} | Total Amount: Rs. {feeDetails.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0).toFixed(2)}
             </div>
           </div>
           <div className="overflow-x-auto" style={{maxWidth: '100vw'}}>
@@ -508,16 +551,25 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
                 </tr>
               </thead>
               <tbody>
-                {feePayments.map((payment, index) => (
+                {feeDetails.map((payment, index) => (
                   <tr key={payment.id} className="hover:bg-gray-50">
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">{index + 1}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{payment.student_name}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{payment.father_name}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">{form.class}/{form.section}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-center">{payment.receipt_no || payment.id || 'N/A'}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-center">
-                      {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB') : 
-                       new Date(payment.created_at).toLocaleDateString('en-GB')}
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-center" style={{minHeight: '60px', verticalAlign: 'top'}}>
+                      <div style={{whiteSpace: 'pre-wrap', lineHeight: '1.4'}}>
+                        {payment.receipt_nos?.map((receipt, idx) => (
+                          <div key={idx}>{receipt}</div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-center" style={{minHeight: '60px', verticalAlign: 'top'}}>
+                      <div style={{whiteSpace: 'pre-wrap', lineHeight: '1.4'}}>
+                        {payment.payment_dates?.map((date, idx) => (
+                          <div key={idx}>{date}</div>
+                        ))}
+                      </div>
                     </td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">
                       {payment.manual_date ? new Date(payment.manual_date).toLocaleDateString('en-GB') : 'N/A'}
@@ -543,20 +595,20 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
                         ))}
                       </div>
                     </td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.discount || payment.discount_amount || 0).toFixed(2)}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.other_charges || payment.other_amount || 0).toFixed(2)}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.fine || payment.fine_amount || 0).toFixed(2)}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.tax || payment.education_tax || 0).toFixed(2)}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.total_discount || 0).toFixed(2)}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.total_other || 0).toFixed(2)}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.total_fine || 0).toFixed(2)}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. 0.00</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(previousDues[payment.student_id] || 0).toFixed(2)}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {(parseFloat(payment.amount || 0) + parseFloat(previousDues[payment.student_id] || 0)).toFixed(2)}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.amount || 0).toFixed(2)}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {((parseFloat(payment.amount || 0) + parseFloat(previousDues[payment.student_id] || 0)) - parseFloat(payment.amount || 0)).toFixed(2)}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-right">Rs. {parseFloat(payment.total_remaining || 0).toFixed(2)}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">
                       <button 
-                        onClick={() => window.location.href = `#/variable-fees/view_fee_details?studentId=${payment.student_id}&receiptNo=${payment.receipt_no || payment.id}`}
+                        onClick={() => printFeeReceipt(payment)}
                         className="text-blue-600 hover:text-blue-800 cursor-pointer underline text-xs"
                       >
-                        View Fee Detail
+                        Print Receipt
                       </button>
                     </td>
                   </tr>
@@ -567,7 +619,7 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
         </div>
       )}
 
-      {feePayments.length === 0 && !loading && (
+      {feeDetails.length === 0 && !loading && (
         <div className="bg-white border border-gray-300 p-8 text-center">
           <p className="text-gray-500">No fee payment records found for the selected criteria.</p>
         </div>
@@ -576,4 +628,4 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
   );
 };
 
-export default DailyFeeReceiptRegister;
+export default ViewFeeDetails;

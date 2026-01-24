@@ -24,7 +24,8 @@ import {
   Globe,
   Heart,
   Briefcase,
-  Award
+  Award,
+  UserPlus
 } from 'lucide-react';
 import { User } from '../types';
 import { COLORS } from '../constants';
@@ -117,7 +118,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         { name: 'Print Pre Bill', path: '/variable-fees/print_pre_bill', icon: CreditCard },
         { name: 'Export/Import Due Amount', path: '/variable-fees/export_import_due_amount', icon: BookOpen },
         { name: 'Fee Submit', path: '/variable-fees/fee_submit', icon: CreditCard },
-        { name: 'View Fee Details', path: '/variable-fees/view_fee_details', icon: BookOpen },
         { name: 'Daily Fee Receipt Register', path: '/variable-fees/daily_fee_receipt_register', icon: Receipt },
         { name: 'Student Fee Ledger', path: '/variable-fees/student_fee_ledger', icon: BookOpen }
       ]
@@ -178,6 +178,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         { name: 'Manage Department', path: '/masters/manage_department', icon: Briefcase },
         { name: 'Manage Designation', path: '/masters/manage_designation', icon: Award },
         { name: 'Class/Subjects Teacher', path: '/masters/class_subjects_teacher', icon: UserCheck }
+      ]
+    },
+    { 
+      name: 'Human Resources', 
+      path: '/hr', 
+      icon: UserPlus, 
+      roles: ['Super Admin', 'Admin'],
+      subItems: [
+        { name: 'Manage Employee', path: '/hr/manage_employee', icon: Users }
       ]
     },
     { name: 'Admin Control', path: '/admin', icon: Settings, roles: ['Super Admin'] },
