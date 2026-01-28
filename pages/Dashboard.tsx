@@ -23,17 +23,9 @@ import { User } from '../types';
 import { formatCurrency } from '../constants';
 import { supabaseService } from '../lib/supabase';
 
-const data = [
-  { name: 'Jan', collection: 4000, expenses: 2400 },
-  { name: 'Feb', collection: 3000, expenses: 1398 },
-  { name: 'Mar', collection: 2000, expenses: 9800 },
-  { name: 'Apr', collection: 2780, expenses: 3908 },
-  { name: 'May', collection: 1890, expenses: 4800 },
-  { name: 'Jun', collection: 2390, expenses: 3800 },
-];
-
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   const [schoolData, setSchoolData] = useState<any>(null);
+  const [chartData, setChartData] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     monthlyCollection: 0,
@@ -44,14 +36,23 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     fetchSchoolData();
     fetchDashboardStats();
+    fetchChartData();
   }, []);
 
   const fetchSchoolData = async () => {
     try {
+      if (user.role === 'Super Admin') {
+        setSchoolData({ school_name: 'System Admin' });
+        return;
+      }
+      if (!user.school_id) {
+        setSchoolData(null);
+        return;
+      }
       const { data, error } = await supabaseService.supabase
         .from('schools')
         .select('*')
-        .limit(1)
+        .eq('id', user.school_id)
         .single();
       
       if (error) throw error;
@@ -61,35 +62,115 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
+  const fetchChartData = async () => {
+    try {
+      if (!user.school_id) {
+        setChartData([]);
+        return;
+      }
+
+      // Fetch current year data
+      const currentYear = new Date().getFullYear();
+      const startOfYear = `${currentYear}-01-01`;
+      const endOfYear = `${currentYear}-12-31`;
+
+      const { data: payments } = await supabaseService.supabase
+        .from('fee_payments')
+        .select('amount, created_at')
+        .eq('school_id', user.school_id)
+        .gte('created_at', startOfYear)
+        .lte('created_at', endOfYear);
+
+      const { data: expenses } = await supabaseService.supabase
+        .from('expenses')
+        .select('amount, created_at')
+        .eq('school_id', user.school_id)
+        .gte('created_at', startOfYear)
+        .lte('created_at', endOfYear);
+
+      // Group by month
+      const monthlyData: { [key: string]: { collection: number; expenses: number } } = {};
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      // Initialize all 12 months
+      months.forEach(month => {
+        monthlyData[month] = { collection: 0, expenses: 0 };
+      });
+
+      // Aggregate payments
+      payments?.forEach(payment => {
+        const date = new Date(payment.created_at);
+        const monthKey = months[date.getMonth()];
+        monthlyData[monthKey].collection += parseFloat(payment.amount || '0');
+      });
+
+      // Aggregate expenses
+      expenses?.forEach(expense => {
+        const date = new Date(expense.created_at);
+        const monthKey = months[date.getMonth()];
+        monthlyData[monthKey].expenses += parseFloat(expense.amount || '0');
+      });
+
+      // Convert to chart format
+      const chartData = months.map(month => ({
+        name: month,
+        collection: monthlyData[month].collection,
+        expenses: monthlyData[month].expenses
+      }));
+
+      setChartData(chartData);
+    } catch (e) {
+      console.error('Error fetching chart data:', e);
+      setChartData([]);
+    }
+  };
+
   const fetchDashboardStats = async () => {
     try {
-      // Fetch total students
+      if (user.role === 'Super Admin' || !user.school_id) {
+        setStats({ totalStudents: 0, monthlyCollection: 0, pendingFees: 0, totalExpenses: 0 });
+        return;
+      }
+      
+      // Fetch total students for this school
       const { data: students, error: studentsError } = await supabaseService.supabase
         .from('students')
-        .select('id', { count: 'exact' });
+        .select('id', { count: 'exact' })
+        .eq('school_id', user.school_id);
       
-      // Fetch monthly collection from fee_payments
+      // Fetch monthly collection from fee_payments for this school
       const currentMonth = new Date().toISOString().slice(0, 7);
       const { data: payments, error: paymentsError } = await supabaseService.supabase
         .from('fee_payments')
         .select('amount')
+        .eq('school_id', user.school_id)
         .gte('created_at', currentMonth + '-01')
         .lt('created_at', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString());
       
-      // Fetch pending fees (remaining amounts)
+      // Fetch pending fees for this school
       const { data: pending, error: pendingError } = await supabaseService.supabase
         .from('fee_payments')
         .select('remaining_amount')
+        .eq('school_id', user.school_id)
         .gt('remaining_amount', 0);
       
-      const monthlyCollection = payments?.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0;
-      const pendingFees = pending?.reduce((sum, p) => sum + parseFloat(p.remaining_amount || 0), 0) || 0;
+      // Fetch monthly expenses for this school
+      const { data: expenses, error: expensesError } = await supabaseService.supabase
+        .from('expenses')
+        .select('amount')
+        .eq('school_id', user.school_id)
+        .gte('created_at', currentMonth + '-01')
+        .lt('created_at', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString());
+      
+      const monthlyCollection = payments?.reduce((sum, p) => sum + parseFloat(p.amount || '0'), 0) || 0;
+      const pendingFees = pending?.reduce((sum, p) => sum + parseFloat(p.remaining_amount || '0'), 0) || 0;
+      const totalExpenses = expenses?.reduce((sum, e) => sum + parseFloat(e.amount || '0'), 0) || 0;
       
       setStats({
         totalStudents: students?.length || 0,
         monthlyCollection,
         pendingFees,
-        totalExpenses: monthlyCollection * 0.3 // Estimate expenses as 30% of collection
+        totalExpenses
       });
     } catch (e) {
       console.error('Error fetching dashboard stats:', e);
@@ -146,13 +227,13 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-gray-900">Income vs Expenses</h2>
             <select className="text-sm border-none bg-gray-50 rounded-lg px-3 py-1 font-medium text-gray-600 focus:ring-0 cursor-pointer">
-              <option>Last 6 Months</option>
-              <option>Last Year</option>
+              <option>Current Year ({new Date().getFullYear()})</option>
+              <option>Last Year ({new Date().getFullYear() - 1})</option>
             </select>
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
+              <AreaChart data={chartData.length > 0 ? chartData : [{ name: 'No Data', collection: 0, expenses: 0 }]}>
                 <defs>
                   <linearGradient id="colorColl" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>

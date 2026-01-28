@@ -382,7 +382,14 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
   const fetchFeeHeads = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabaseService.supabase.from('fee_heads').select('*');
+      let query = supabaseService.supabase.from('fee_heads').select('*');
+      
+      // Only filter by school_id if user has one
+      if (user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         console.error('Error fetching fee heads:', error);
         setFeeHeadsList([]);
@@ -456,7 +463,14 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
   const fetchFeeMonths = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabaseService.supabase.from('fee_months').select('*');
+      let query = supabaseService.supabase.from('fee_months').select('*');
+      
+      // Only filter by school_id if user has one
+      if (user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         console.error('Error fetching fee months:', error);
         setFeeMonthsList([]);
@@ -835,7 +849,8 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                     const payload = {
                       fee_head: feeHeadForm.feeHead,
                       short_name: feeHeadForm.shortName,
-                      type: feeHeadForm.type
+                      type: feeHeadForm.type,
+                      school_id: user.school_id
                     };
                     
                     if (editingFeeHeadId) {
@@ -862,6 +877,43 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                   finally { setSubmitting(false); }
                 }} disabled={submitting}>
                   {submitting ? <Loader2 size={12} className="animate-spin" /> : (editingFeeHeadId ? 'UPDATE' : 'ADD')}
+                </BlueBtn>
+                <BlueBtn onClick={async () => {
+                  if (!user.school_id) { alert('School ID not found'); return; }
+                  setSubmitting(true);
+                  try {
+                    const standardFeeHeads = [
+                      { fee_head: 'Monthly Fee', short_name: 'MF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Transportation Fee', short_name: 'TF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Breakfast', short_name: 'BF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Tuition Fee', short_name: 'TF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Admission Fee', short_name: 'AF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Annual Fee', short_name: 'AF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'E learning', short_name: 'EL', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Exam Fee', short_name: 'EF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'House Dress', short_name: 'HD', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Picnic Fee', short_name: 'PF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Extra Class Fee', short_name: 'ECF', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Diary', short_name: 'DY', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Tie', short_name: 'TI', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Belt', short_name: 'BT', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'App & Id Card', short_name: 'AIC', type: 'variable', school_id: user.school_id },
+                      { fee_head: 'Educational Tour', short_name: 'ET', type: 'variable', school_id: user.school_id }
+                    ];
+                    
+                    const { error } = await supabaseService.supabase
+                      .from('fee_heads')
+                      .insert(standardFeeHeads);
+                    if (error) throw error;
+                    alert('Standard fee heads added successfully!');
+                    await fetchFeeHeads();
+                  } catch (e: any) {
+                    console.error('Error adding fee heads:', e);
+                    alert(`Failed to add fee heads: ${e.message}`);
+                  }
+                  finally { setSubmitting(false); }
+                }} disabled={submitting} color="bg-green-600">
+                  {submitting ? <Loader2 size={12} className="animate-spin" /> : 'AUTO ADD FEE HEADS'}
                 </BlueBtn>
                 <BlueBtn onClick={() => {
                   setFeeHeadForm({feeHead:'', shortName:'', type:''});
@@ -1259,7 +1311,8 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                   try {
                     const payload = {
                       month_name: feeMonthForm.monthName,
-                      month_order: parseInt(feeMonthForm.monthOrder)
+                      month_order: parseInt(feeMonthForm.monthOrder),
+                      school_id: user.school_id
                     };
                     
                     if (editingFeeMonthId) {
@@ -1286,6 +1339,51 @@ const Fees: React.FC<{ user: User }> = ({ user }) => {
                   finally { setSubmitting(false); }
                 }} disabled={submitting}>
                   {submitting ? <Loader2 size={12} className="animate-spin" /> : (editingFeeMonthId ? 'UPDATE' : 'ADD')}
+                </BlueBtn>
+                <BlueBtn onClick={async () => {
+                  if (!user.school_id) { alert('School ID not found'); return; }
+                  setSubmitting(true);
+                  try {
+                    // Check existing months count
+                    const { data: existing, error: countError } = await supabaseService.supabase
+                      .from('fee_months')
+                      .select('id')
+                      .eq('school_id', user.school_id);
+                    if (countError) throw countError;
+                    
+                    if (existing && existing.length >= 12) {
+                      alert('This school already has 12 months. Only 12 months are allowed per school.');
+                      return;
+                    }
+                    
+                    const nepaliMonths = [
+                      { month_name: 'Baisakh', month_order: 1, school_id: user.school_id },
+                      { month_name: 'Jestha', month_order: 2, school_id: user.school_id },
+                      { month_name: 'Ashadh', month_order: 3, school_id: user.school_id },
+                      { month_name: 'Shrawan', month_order: 4, school_id: user.school_id },
+                      { month_name: 'Bhadra', month_order: 5, school_id: user.school_id },
+                      { month_name: 'Ashoj', month_order: 6, school_id: user.school_id },
+                      { month_name: 'Kartik', month_order: 7, school_id: user.school_id },
+                      { month_name: 'Mangsir', month_order: 8, school_id: user.school_id },
+                      { month_name: 'Poush', month_order: 9, school_id: user.school_id },
+                      { month_name: 'Magh', month_order: 10, school_id: user.school_id },
+                      { month_name: 'Falgun', month_order: 11, school_id: user.school_id },
+                      { month_name: 'Chaitra', month_order: 12, school_id: user.school_id }
+                    ];
+                    
+                    const { error } = await supabaseService.supabase
+                      .from('fee_months')
+                      .insert(nepaliMonths);
+                    if (error) throw error;
+                    alert('12 Nepali months added successfully!');
+                    await fetchFeeMonths();
+                  } catch (e: any) {
+                    console.error('Error adding months:', e);
+                    alert(`Failed to add months: ${e.message}`);
+                  }
+                  finally { setSubmitting(false); }
+                }} disabled={submitting} color="bg-green-600">
+                  {submitting ? <Loader2 size={12} className="animate-spin" /> : 'AUTO ADD MONTHS'}
                 </BlueBtn>
                 <BlueBtn onClick={() => {
                   setFeeMonthForm({monthName:'', monthOrder:''});

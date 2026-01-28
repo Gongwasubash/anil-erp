@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   status: 'Active' | 'Inactive';
   lastLogin?: string;
+  school_id?: string;
 }
 
 export interface Student {

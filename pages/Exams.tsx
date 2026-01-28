@@ -96,7 +96,12 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
   const [schoolsList, setSchoolsList] = useState<any[]>([]);
   const [batchesList, setBatchesList] = useState<any[]>([]);
   const [classesList, setClassesList] = useState<any[]>([]);
-  const [sectionsList, setSectionsList] = useState<any[]>([]);
+  // Add display lists for cross-school data lookup
+  const [displaySchoolsList, setDisplaySchoolsList] = useState<any[]>([]);
+  const [displayBatchesList, setDisplayBatchesList] = useState<any[]>([]);
+  const [displayClassesList, setDisplayClassesList] = useState<any[]>([]);
+  const [displaySectionsList, setDisplaySectionsList] = useState<any[]>([]);
+  const [displayExamTypesList, setDisplayExamTypesList] = useState<any[]>([]);
 
   // Add Exam Marks states
   const [addExamMarksForm, setAddExamMarksForm] = useState({
@@ -213,6 +218,15 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
     fetchGrades();
     fetchExamTypes();
     fetchExamNames();
+    // Fetch all data for exam names display
+    fetchAllSchools();
+    fetchAllBatches();
+    fetchAllClasses();
+    fetchAllSections();
+    fetchAllExamTypes();
+    // Set display lists
+    fetchDisplayData();
+    // Fetch filtered data for dropdowns
     fetchSchools();
     fetchBatches();
     fetchClasses();
@@ -269,9 +283,82 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
     }
   }, [printAdmitCardForm.schoolId, printAdmitCardForm.batchId, printAdmitCardForm.classId, printAdmitCardForm.sectionId]);
 
+  const fetchAllSchools = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase.from('schools').select('*');
+      if (!error && data) {
+        setSchoolsList(data);
+      }
+    } catch (err) {
+      console.error('Error fetching all schools:', err);
+    }
+  };
+
+  const fetchAllBatches = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase.from('batches').select('*');
+      if (!error && data) {
+        setBatchesList(data);
+      }
+    } catch (err) {
+      console.error('Error fetching all batches:', err);
+    }
+  };
+
+  const fetchAllClasses = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase.from('classes').select('*');
+      if (!error && data) {
+        setClassesList(data);
+      }
+    } catch (err) {
+      console.error('Error fetching all classes:', err);
+    }
+  };
+
+  const fetchAllSections = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase.from('sections').select('*');
+      if (!error && data) {
+        setSectionsList(data);
+      }
+    } catch (err) {
+      console.error('Error fetching all sections:', err);
+    }
+  };
+
+  const fetchDisplayData = async () => {
+    try {
+      // Fetch all data for display purposes (unfiltered)
+      const [schoolsRes, batchesRes, classesRes, sectionsRes, examTypesRes] = await Promise.all([
+        supabaseService.supabase.from('schools').select('*'),
+        supabaseService.supabase.from('batches').select('*'),
+        supabaseService.supabase.from('classes').select('*'),
+        supabaseService.supabase.from('sections').select('*'),
+        supabaseService.supabase.from('exam_types').select('*')
+      ]);
+      
+      setDisplaySchoolsList(schoolsRes.data || []);
+      setDisplayBatchesList(batchesRes.data || []);
+      setDisplayClassesList(classesRes.data || []);
+      setDisplaySectionsList(sectionsRes.data || []);
+      setDisplayExamTypesList(examTypesRes.data || []);
+    } catch (err) {
+      console.error('Error fetching display data:', err);
+    }
+  };
+
   const fetchExamTypes = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('exam_types').select('*');
+      let query = supabaseService.supabase.from('exam_types').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
+      
       if (error) {
         console.error('Error fetching exam types:', error);
         setExamTypesList([
@@ -319,7 +406,14 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSchools = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('schools').select('*');
+      let query = supabaseService.supabase.from('schools').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         setSchoolsList([{ id: '1', school_name: 'NORMAL MAX TEST ADMIN' }]);
       } else {
@@ -332,7 +426,14 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchBatches = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('batches').select('*');
+      let query = supabaseService.supabase.from('batches').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         setBatchesList([{ id: '1', batch_no: '2080' }]);
       } else {
@@ -345,7 +446,14 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchClasses = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('classes').select('*');
+      let query = supabaseService.supabase.from('classes').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         setClassesList([
           { id: '1', class_name: 'Class 1' },
@@ -364,7 +472,14 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSections = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('sections').select('*');
+      let query = supabaseService.supabase.from('sections').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         setSectionsList([
           { id: '1', section_name: 'A' },
@@ -381,8 +496,9 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSubjects = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('subjects').select('*').order('order_no', { ascending: true });
+      const { data, error } = await supabaseService.getSubjects(user.school_id);
       if (error) {
+        console.error('Error fetching subjects:', error);
         setSubjectsList([
           { id: '1', subject_code: 'ENG', subject_name: 'English', order_no: 1 },
           { id: '2', subject_code: 'NEP', subject_name: 'Nepali', order_no: 2 },
@@ -397,13 +513,66 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
         setSubjectsList(data || []);
       }
     } catch (err) {
+      console.error('Error fetching subjects:', err);
       setSubjectsList([]);
     }
   };
 
-  const loadFilteredSubjects = () => {
+  const loadFilteredSubjects = async () => {
     if (addExamMarksForm.schoolId && addExamMarksForm.batchId && addExamMarksForm.classId && addExamMarksForm.sectionId) {
-      setFilteredSubjects(subjectsList);
+      try {
+        // Get subjects with school_id filter using the service function
+        const { data, error } = await supabaseService.getSubjects(addExamMarksForm.schoolId);
+        
+        if (error) {
+          console.error('Error loading subjects:', error);
+          // Fallback to default subjects if database query fails
+          const fallbackSubjects = [
+            { id: '1', subject_code: 'ENG', subject_name: 'English', order_no: 1 },
+            { id: '2', subject_code: 'NEP', subject_name: 'Nepali', order_no: 2 },
+            { id: '3', subject_code: 'MAT', subject_name: 'Mathematics', order_no: 3 },
+            { id: '4', subject_code: 'SCI', subject_name: 'Science', order_no: 4 },
+            { id: '5', subject_code: 'SOC', subject_name: 'Social Studies', order_no: 5 }
+          ];
+          setFilteredSubjects(fallbackSubjects);
+          
+          // Initialize subject marks state with fallback data
+          const initialMarks: {[key: string]: any} = {};
+          fallbackSubjects.forEach(subject => {
+            initialMarks[subject.id] = {
+              thMarks: '',
+              passMarksTh: '',
+              creditHourTh: '',
+              prInMarks: '',
+              passMarksPrIn: '',
+              creditHourPrIn: ''
+            };
+          });
+          setSubjectMarks(initialMarks);
+        } else {
+          setFilteredSubjects(data || []);
+          
+          // Initialize subject marks state
+          const initialMarks: {[key: string]: any} = {};
+          (data || []).forEach(subject => {
+            initialMarks[subject.id] = {
+              thMarks: '',
+              passMarksTh: '',
+              creditHourTh: '',
+              prInMarks: '',
+              passMarksPrIn: '',
+              creditHourPrIn: ''
+            };
+          });
+          setSubjectMarks(initialMarks);
+          
+          // Load existing exam marks if available
+          loadExistingExamMarks();
+        }
+      } catch (err) {
+        console.error('Error loading subjects:', err);
+        setFilteredSubjects([]);
+      }
     } else {
       setFilteredSubjects([]);
     }
@@ -412,28 +581,12 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
   // Auto-load subjects when all required fields are selected
   useEffect(() => {
     if (addExamMarksForm.schoolId && addExamMarksForm.batchId && addExamMarksForm.classId && addExamMarksForm.sectionId) {
-      setFilteredSubjects(subjectsList);
-      // Initialize subject marks state
-      const initialMarks: {[key: string]: any} = {};
-      subjectsList.forEach(subject => {
-        initialMarks[subject.id] = {
-          thMarks: '',
-          passMarksTh: '',
-          creditHourTh: '',
-          prInMarks: '',
-          passMarksPrIn: '',
-          creditHourPrIn: ''
-        };
-      });
-      setSubjectMarks(initialMarks);
-      
-      // Load existing exam marks if available
-      loadExistingExamMarks();
+      loadFilteredSubjects();
     } else {
       setFilteredSubjects([]);
       setSubjectMarks({});
     }
-  }, [addExamMarksForm.schoolId, addExamMarksForm.batchId, addExamMarksForm.classId, addExamMarksForm.sectionId, addExamMarksForm.examTypeId, addExamMarksForm.examNameId, subjectsList]);
+  }, [addExamMarksForm.schoolId, addExamMarksForm.batchId, addExamMarksForm.classId, addExamMarksForm.sectionId, addExamMarksForm.examTypeId, addExamMarksForm.examNameId]);
 
   const handleSubjectMarkChange = (subjectId: string, field: string, value: string) => {
     setSubjectMarks(prev => ({
@@ -492,13 +645,17 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchExamNames = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('exam_names').select('*');
+      let query = supabaseService.supabase.from('exam_names').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) {
         console.error('Error fetching exam names:', error);
-        setExamNamesList([
-          { id: '1', school_id: '1', branch_id: '1', batch_no: '2080', class_id: '1', section_id: '1', exam_type_id: '1', exam_name: 'First Terminal Exam', is_current_exam: true },
-          { id: '2', school_id: '1', branch_id: '1', batch_no: '2080', class_id: '2', section_id: '1', exam_type_id: '2', exam_name: 'Second Terminal Exam', is_current_exam: false }
-        ]);
+        setExamNamesList([]);
       } else {
         setExamNamesList(data || []);
       }
@@ -1328,7 +1485,15 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchGrades = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('grades').select('*');
+      let query = supabaseService.supabase.from('grades').select('*');
+      
+      // Filter by user's school_id if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
+      
       if (error) {
         console.error('Error fetching grades:', error);
         // Load default grades if database fails
@@ -1483,7 +1648,8 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                         min_g_point: parseFloat(addGradeForm.minGPoint) || 0,
                         max_g_point: parseFloat(addGradeForm.maxGPoint) || 0,
                         description: addGradeForm.description,
-                        teacher_remarks: addGradeForm.teacherRemarks
+                        teacher_remarks: addGradeForm.teacherRemarks,
+                        school_id: user.school_id
                       };
                       
                       if (editingGrade) {
@@ -1787,7 +1953,7 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                         } else {
                           const { error } = await supabaseService.supabase
                             .from('exam_types')
-                            .insert([{ exam_type: examTypeForm.examType }]);
+                            .insert([{ exam_type: examTypeForm.examType, school_id: user.school_id }]);
                             
                           if (error) {
                             alert('Error saving exam type: ' + error.message);
@@ -1920,7 +2086,13 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                         className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
                       >
                         <option value="">--- Select ---</option>
-                        {examTypesList.map(type => (
+                        {examTypesList.filter(type => {
+                          // Filter by user's school_id if not Super Admin
+                          if (user.role !== 'Super Admin' && user.school_id) {
+                            return type.school_id === user.school_id;
+                          }
+                          return true;
+                        }).map(type => (
                           <option key={type.id} value={type.id}>{type.exam_type}</option>
                         ))}
                       </select>
@@ -2051,11 +2223,11 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                       {examNamesList.map((examName, idx) => (
                         <tr key={examName.id} className="hover:bg-gray-50">
                           <td className="border border-gray-300 px-2 py-1 text-xs text-center">{idx + 1}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs">{schoolsList.find(s => s.id === examName.school_id)?.school_name || 'NORMAL MAX TEST ADMIN'}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{batchesList.find(b => b.id === examName.batch_id)?.batch_no || '2080'}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">Class {examName.class_id}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{examName.section_id === '1' ? 'A' : examName.section_id === '2' ? 'B' : 'C'}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs">{examTypesList.find(t => t.id === examName.exam_type_id)?.exam_type || 'Terminal'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{displaySchoolsList.find(s => s.id === examName.school_id)?.school_name || 'Unknown School'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{displayBatchesList.find(b => b.id === examName.batch_id)?.batch_no || 'Unknown Batch'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{displayClassesList.find(c => c.id === examName.class_id)?.class_name || 'Unknown Class'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{displaySectionsList.find(s => s.id === examName.section_id)?.section_name || 'Unknown Section'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{displayExamTypesList.find(t => t.id === examName.exam_type_id)?.exam_type || 'Unknown Type'}</td>
                           <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{examName.exam_name}</td>
                           <td className="border border-gray-300 px-2 py-1 text-xs text-center">
                             <button onClick={() => handleEditExamName(examName)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all">
@@ -2165,6 +2337,18 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                       </select>
                     </div>
                   </div>
+                </div>
+                <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
+                  <BlueBtn onClick={() => {
+                    if (addExamMarksForm.schoolId && addExamMarksForm.batchId && addExamMarksForm.classId && addExamMarksForm.sectionId) {
+                      loadFilteredSubjects();
+                      loadExamMarksStudents();
+                    } else {
+                      alert('Please select School, Batch, Class and Section first.');
+                    }
+                  }}>
+                    SEARCH
+                  </BlueBtn>
                 </div>
               </SectionBox>
 
@@ -3710,6 +3894,47 @@ const Exams: React.FC<{ user: User }> = ({ user }) => {
                   <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded text-xs font-bold hover:bg-gray-600 transition-all">
                     <Search size={16} /> SEARCH
                   </button>
+                  <BlueBtn onClick={async () => {
+                    if (!window.confirm('This will add standard grading system (E to A+). Continue?')) return;
+                    
+                    try {
+                      const standardGrades = [
+                        { grade_name: 'E', min_percent: 0, max_percent: 19.99, grade_point: 0.8, min_g_point: 0, max_g_point: 0.8, description: 'Very Insufficient', teacher_remarks: '' },
+                        { grade_name: 'D', min_percent: 20, max_percent: 29.99, grade_point: 1.2, min_g_point: 0.81, max_g_point: 1.2, description: 'Insufficient', teacher_remarks: '' },
+                        { grade_name: 'D+', min_percent: 30, max_percent: 39.99, grade_point: 1.6, min_g_point: 1.21, max_g_point: 1.6, description: 'Partially Acceptable', teacher_remarks: '' },
+                        { grade_name: 'C', min_percent: 40, max_percent: 49.99, grade_point: 2, min_g_point: 1.61, max_g_point: 2, description: 'Acceptable', teacher_remarks: '' },
+                        { grade_name: 'C+', min_percent: 50, max_percent: 59.99, grade_point: 2.4, min_g_point: 2.01, max_g_point: 2.4, description: 'Satisfactory', teacher_remarks: '' },
+                        { grade_name: 'B', min_percent: 60, max_percent: 69.99, grade_point: 2.8, min_g_point: 2.41, max_g_point: 2.8, description: 'Good', teacher_remarks: '' },
+                        { grade_name: 'B+', min_percent: 70, max_percent: 79.99, grade_point: 3.2, min_g_point: 2.81, max_g_point: 3.2, description: 'Very Good', teacher_remarks: '' },
+                        { grade_name: 'A', min_percent: 80, max_percent: 89.99, grade_point: 3.6, min_g_point: 3.21, max_g_point: 3.6, description: 'Excellent', teacher_remarks: '' },
+                        { grade_name: 'A+', min_percent: 90, max_percent: 100, grade_point: 4, min_g_point: 3.61, max_g_point: 4, description: 'Outstanding', teacher_remarks: '' }
+                      ];
+                      
+                      // Add school_id to each grade
+                      const gradesWithSchoolId = standardGrades.map(grade => ({
+                        ...grade,
+                        school_id: user.school_id
+                      }));
+                      
+                      const { data, error } = await supabaseService.supabase
+                        .from('grades')
+                        .insert(gradesWithSchoolId)
+                        .select();
+                        
+                      if (error) {
+                        console.error('Error adding standard grades:', error);
+                        alert('Error adding standard grades: ' + error.message);
+                      } else {
+                        alert(`Successfully added ${data.length} standard grades!`);
+                        fetchGrades();
+                      }
+                    } catch (err) {
+                      console.error('Database error:', err);
+                      alert('Database connection error');
+                    }
+                  }} color="bg-green-600">
+                    AUTO ADD GRADES
+                  </BlueBtn>
                   <BlueBtn onClick={() => setGradeForm({ gradeName: '' })} color="bg-gray-400">
                     CANCEL
                   </BlueBtn>

@@ -73,9 +73,19 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSchools = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('schools').select('*');
-      if (error) throw error;
-      setSchools(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('schools')
+          .select('*')
+          .eq('id', user.school_id);
+        if (error) throw error;
+        setSchools(data || []);
+        if (data && data.length > 0) {
+          setForm(prev => ({ ...prev, school: data[0].school_name }));
+        }
+      } else {
+        setSchools([]);
+      }
     } catch (e) {
       console.error('Error fetching schools:', e);
     }
@@ -83,9 +93,13 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchBatches = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('batches').select('*');
-      if (error) throw error;
-      setBatches(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.getBatches(user.school_id);
+        if (error) throw error;
+        setBatches(data || []);
+      } else {
+        setBatches([]);
+      }
     } catch (e) {
       console.error('Error fetching batches:', e);
     }
@@ -93,9 +107,13 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchClasses = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('classes').select('*');
-      if (error) throw error;
-      setClasses(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.getClasses(user.school_id);
+        if (error) throw error;
+        setClasses(data || []);
+      } else {
+        setClasses([]);
+      }
     } catch (e) {
       console.error('Error fetching classes:', e);
     }
@@ -103,9 +121,13 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSections = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('sections').select('*');
-      if (error) throw error;
-      setSections(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.getSections(user.school_id);
+        if (error) throw error;
+        setSections(data || []);
+      } else {
+        setSections([]);
+      }
     } catch (e) {
       console.error('Error fetching sections:', e);
     }
@@ -132,6 +154,7 @@ const DailyFeeReceiptRegister: React.FC<{ user: User }> = ({ user }) => {
       let query = supabaseService.supabase
         .from('fee_payments')
         .select('*')
+        .eq('school_id', user.school_id)
         .order('created_at', { ascending: false });
       
       if (studentIds.length > 0) {

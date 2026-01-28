@@ -568,17 +568,40 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
 
   const loadMasterData = async () => {
     try {
+      if (user.role === 'Super Admin') {
+        // Superadmin sees no data - fresh start
+        setSchools([]);
+        setBatches([]);
+        setClasses([]);
+        setSections([]);
+        return;
+      }
+      
+      if (!user.school_id) {
+        setSchools([]);
+        setBatches([]);
+        setClasses([]);
+        setSections([]);
+        return;
+      }
+      
       const [schoolsRes, batchesRes, classesRes, sectionsRes] = await Promise.all([
-        supabaseService.getSchools(),
-        supabaseService.getBatches(),
-        supabaseService.getClasses(),
-        supabaseService.getSections()
+        supabaseService.supabase.from('schools').select('*').eq('id', user.school_id),
+        supabaseService.getBatches(user.school_id),
+        supabaseService.getClasses(user.school_id),
+        supabaseService.getSections(user.school_id)
       ]);
       
       setSchools(schoolsRes.data || []);
       setBatches(batchesRes.data || []);
       setClasses(classesRes.data || []);
       setSections(sectionsRes.data || []);
+      
+      // Auto-select logged-in user's school
+      if (schoolsRes.data && schoolsRes.data.length > 0) {
+        const userSchool = schoolsRes.data[0];
+        setSearchFilters(prev => ({ ...prev, school: userSchool.school_name }));
+      }
     } catch (err) {
       console.error('Error loading master data:', err);
     }
@@ -588,7 +611,14 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
     setLoading(true);
     try {
       console.log('Checking students table...');
-      const { data, error } = await supabaseService.supabase.from('students').select('*');
+      let query = supabaseService.supabase.from('students').select('*');
+      
+      // Filter by user's school if not Super Admin
+      if (user.role !== 'Super Admin' && user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       
       if (error) {
         console.error('Students table error:', error);
@@ -921,6 +951,16 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
     class: '',
     section: ''
   });
+  const [appliedFilters, setAppliedFilters] = useState({
+    school: '',
+    batch: '',
+    class: '',
+    section: ''
+  });
+
+  const handleSearch = () => {
+    setAppliedFilters({ ...searchFilters });
+  };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -928,14 +968,20 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
   };
 
   const filteredStudents = students.filter(s => {
-    const nameMatch = s.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                     s.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                     s.id?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Require batch, class, and section to be selected (school is auto-selected)
+    const hasAllRequiredFilters = appliedFilters.school && appliedFilters.batch && appliedFilters.class && appliedFilters.section;
+    if (!hasAllRequiredFilters) return false;
     
-    const schoolMatch = !searchFilters.school || s.school === searchFilters.school;
-    const batchMatch = !searchFilters.batch || s.batch_no === searchFilters.batch;
-    const classMatch = !searchFilters.class || s.class === searchFilters.class;
-    const sectionMatch = !searchFilters.section || s.section === searchFilters.section;
+    const nameMatch = searchTerm ? (
+      s.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.id?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) : true;
+    
+    const schoolMatch = !appliedFilters.school || s.school === appliedFilters.school;
+    const batchMatch = !appliedFilters.batch || s.batch_no === appliedFilters.batch;
+    const classMatch = !appliedFilters.class || s.class === appliedFilters.class;
+    const sectionMatch = !appliedFilters.section || s.section === appliedFilters.section;
     
     return nameMatch && schoolMatch && batchMatch && classMatch && sectionMatch;
   });
@@ -998,14 +1044,13 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
           {/* Student Search Filter */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-xl shadow-gray-200/50 p-6 mb-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Search Students</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <SelectField 
-                label="School" 
-                name="school" 
-                value={searchFilters.school} 
-                onChange={handleFilterChange} 
-                options={schools.map(s => s.school_name)} 
-              />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-500 uppercase ml-1">School</label>
+                <div className="w-full px-4 py-2.5 border rounded-xl text-sm font-medium bg-blue-50 border-blue-100 text-blue-700">
+                  {schools.length > 0 ? schools[0].school_name : 'Loading...'}
+                </div>
+              </div>
               <SelectField 
                 label="Batch" 
                 name="batch" 
@@ -1041,6 +1086,26 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
                 </div>
               </div>
             </div>
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleSearch}
+                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+              >
+                <Search size={18} />
+                Search Students
+              </button>
+              <button
+                onClick={() => {
+                  setSearchFilters({ school: '', batch: '', class: '', section: '' });
+                  setAppliedFilters({ school: '', batch: '', class: '', section: '' });
+                  setSearchTerm('');
+                }}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gray-400 text-white rounded-xl font-bold hover:bg-gray-500 transition-all"
+              >
+                <X size={18} />
+                Clear Filters
+              </button>
+            </div>
           </div>
 
           {/* Main Table View */}
@@ -1065,8 +1130,10 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
                 <tbody>
                   {loading && students.length === 0 ? (
                     <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">Fetching Records...</td></tr>
+                  ) : filteredStudents.length === 0 && (appliedFilters.school || appliedFilters.batch || appliedFilters.class || appliedFilters.section || searchTerm) ? (
+                    <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">No records found matching the selected filters.</td></tr>
                   ) : filteredStudents.length === 0 ? (
-                    <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">No records found.</td></tr>
+                    <tr><td colSpan={6} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">Please apply filters to view student data.</td></tr>
                   ) : filteredStudents.map((student) => (
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 px-2 py-1 text-xs">

@@ -1,0 +1,48 @@
+@media print {
+  @page {
+    size: A4;
+    margin: 0.5in;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    background: white !important;
+  }
+  
+  * {
+    visibility: hidden;
+  }
+  
+  .marksheet-container, .marksheet-container * {
+    visibility: visible;
+  }
+  
+  .marksheet-container {
+    position: relative;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0.3in !important;
+    box-shadow: none !important;
+    border: none !important;
+    font-size: 10px !important;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+  
+  .marksheet-container:last-child {
+    page-break-after: auto;
+  }
+  
+  button {
+    display: none !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}

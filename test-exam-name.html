@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Exam Name Page</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        // Simple test to see if React is working
+        const { useState } = React;
+        
+        function TestExamName() {
+            const [message, setMessage] = useState('Exam Name page is working!');
+            
+            return React.createElement('div', {
+                style: { padding: '20px', fontFamily: 'Arial' }
+            }, [
+                React.createElement('h1', { key: 'title' }, 'Test Exam Name Page'),
+                React.createElement('p', { key: 'message' }, message),
+                React.createElement('button', {
+                    key: 'button',
+                    onClick: () => setMessage('Button clicked!')
+                }, 'Test Button')
+            ]);
+        }
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(TestExamName));
+    </script>
+</body>
+</html>

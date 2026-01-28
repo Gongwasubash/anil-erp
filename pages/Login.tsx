@@ -2,38 +2,52 @@
 import React, { useState } from 'react';
 import { School, ShieldAlert, Loader2, ArrowRight, CheckCircle } from 'lucide-react';
 import { User } from '../types';
-import { callBackend, getApiUrl } from '../services/api';
+import { supabaseService } from '../lib/supabase';
 
 const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const apiUrl = getApiUrl();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    if (!apiUrl) {
-      setError('Backend URL is missing. Please contact administrator.');
-      setIsLoading(false);
-      return;
-    }
-
     const trimmedUser = username.trim();
     const trimmedPass = password.trim();
 
     try {
-      const userData = await callBackend('LOGIN', { username: trimmedUser, password: trimmedPass });
-      onLogin(userData);
-    } catch (err: any) {
+      // Check for superadmin first (for initial setup)
       if (trimmedUser.toLowerCase() === 'superadmin' && trimmedPass === 'admin123') {
         onLogin({ id: '1', username: 'Super Admin', role: 'Super Admin', status: 'Active' });
-      } else {
-        setError(err.message || 'Login failed. Check your username and password.');
+        return;
       }
+
+      // Check schools table for school-specific authentication
+      const { data: schools, error } = await supabaseService.supabase
+        .from('schools')
+        .select('*')
+        .eq('username', trimmedUser)
+        .eq('password', trimmedPass)
+        .single();
+
+      if (error || !schools) {
+        setError('Invalid username or password. Please check your credentials.');
+      } else {
+        // Login successful with school credentials
+        onLogin({ 
+          id: schools.id, 
+          username: schools.school_name, 
+          role: 'Admin', 
+          status: 'Active',
+          school_id: schools.id
+        });
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -49,12 +63,10 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">EVEREST SCHOOL</h1>
             <p className="text-gray-500 font-medium">Cloud Integrated ERP System</p>
-            {apiUrl && (
-              <div className="flex items-center justify-center gap-1.5 mt-3 text-green-600">
-                <CheckCircle size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Backend Connected</span>
-              </div>
-            )}
+            <div className="flex items-center justify-center gap-1.5 mt-3 text-green-600">
+              <CheckCircle size={14} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Database Connected</span>
+            </div>
           </div>
         </div>
 

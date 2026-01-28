@@ -26,10 +26,10 @@ const BlueBtn = ({ children, onClick, color = "bg-[#3498db]", disabled = false }
 
 const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
   const [form, setForm] = useState({
-    school: 'JHOR HIGH SCHOOL',
-    batch: '2080',
-    class: '1',
-    section: 'A',
+    school: '',
+    batch: '',
+    class: '',
+    section: '',
     feeMonth: ''
   });
 
@@ -77,7 +77,8 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
                   school: form.school,
                   batch: form.batch,
                   class: form.class,
-                  section: form.section
+                  section: form.section,
+                  school_id: user.school_id
                 });
               }
             }
@@ -231,7 +232,14 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchFeeMonths = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('fee_months').select('*');
+      let query = supabaseService.supabase.from('fee_months').select('*');
+      
+      // Only filter by school_id if user has one
+      if (user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       setFeeMonths(data || []);
     } catch (e) {
@@ -241,9 +249,18 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSchools = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('schools').select('*');
-      if (error) throw error;
-      setSchools(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('schools')
+          .select('*')
+          .eq('id', user.school_id)
+          .single();
+        if (error) throw error;
+        if (data) {
+          setSchools([data]);
+          setForm(p => ({ ...p, school: data.school_name }));
+        }
+      }
     } catch (e) {
       console.error('Error fetching schools:', e);
     }
@@ -251,9 +268,14 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchBatches = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('batches').select('*');
-      if (error) throw error;
-      setBatches(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('batches')
+          .select('*')
+          .eq('school_id', user.school_id);
+        if (error) throw error;
+        setBatches(data || []);
+      }
     } catch (e) {
       console.error('Error fetching batches:', e);
     }
@@ -261,9 +283,14 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchClasses = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('classes').select('*');
-      if (error) throw error;
-      setClasses(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('classes')
+          .select('*')
+          .eq('school_id', user.school_id);
+        if (error) throw error;
+        setClasses(data || []);
+      }
     } catch (e) {
       console.error('Error fetching classes:', e);
     }
@@ -271,9 +298,14 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSections = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('sections').select('*');
-      if (error) throw error;
-      setSections(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('sections')
+          .select('*')
+          .eq('school_id', user.school_id);
+        if (error) throw error;
+        setSections(data || []);
+      }
     } catch (e) {
       console.error('Error fetching sections:', e);
     }
@@ -400,24 +432,30 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
         </div>
       </div>
 
-      {students.length > 0 && (
-        <div className="bg-white border border-gray-300 mb-6">
-          <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-700">Student Records</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Roll</th>
-                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Name</th>
-                  {feeHeads.map(feeHead => (
-                    <th key={feeHead.id} className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">{feeHead.fee_head}</th>
-                  ))}
+      <div className="bg-white border border-gray-300 mb-6">
+        <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-700">Student Records</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Roll</th>
+                <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Name</th>
+                {feeHeads.map(feeHead => (
+                  <th key={feeHead.id} className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">{feeHead.fee_head}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {students.length === 0 ? (
+                <tr>
+                  <td colSpan={2 + feeHeads.length} className="border border-gray-300 px-2 py-4 text-xs text-center text-gray-500">
+                    No students found. Please search for students.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {students.map((student) => (
+              ) : (
+                students.map((student) => (
                   <tr key={student.id} className="hover:bg-gray-50">
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">{student.roll_no}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{`${student.first_name || ''} ${student.last_name || ''}`.trim()}</td>
@@ -439,12 +477,12 @@ const AddStudentVariableFee: React.FC<{ user: User }> = ({ user }) => {
                       </td>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
       <div className="bg-white border border-gray-300 mb-6">
         <div className="p-4">

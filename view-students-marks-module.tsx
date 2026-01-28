@@ -1,181 +1,230 @@
-          ) : activeModule === 'view_students_marks' ? (
-            <div>
-              <div className="mb-6 relative pb-4">
-                <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
-                  View Students Marks
-                </h2>
-                <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+const ViewStudentsMarksModule: React.FC = () => {
+  const navigate = useNavigate();
+  const [marksheetData, setMarksheetData] = useState<any>(null);
+
+  useEffect(() => {
+    const data = sessionStorage.getItem('printMarksheetData');
+    if (data) {
+      setMarksheetData(JSON.parse(data));
+    } else {
+      navigate('/exams/view_students_marks');
+    }
+  }, [navigate]);
+
+  const calculateGrade = (percentage: number, grades: any[]) => {
+    if (!grades || grades.length === 0) return { grade: 'N/A', gpa: '0.0' };
+    const matchedGrade = grades.find(g => 
+      percentage >= parseFloat(g.min_percent) && 
+      percentage <= parseFloat(g.max_percent)
+    );
+    return matchedGrade ? { grade: matchedGrade.grade_name, gpa: matchedGrade.grade_point.toString() } : { grade: 'N/A', gpa: '0.0' };
+  };
+
+  if (!marksheetData) {
+    return <div className="p-8 text-center">Loading marksheet...</div>;
+  }
+
+  const { student, form, examMarks, selectedSubjectName, grades } = marksheetData;
+
+  return (
+    <div className="w-full min-h-screen bg-white p-8">
+      <div className="max-w-4xl mx-auto border-2 border-black">
+        {/* Header */}
+        <div className="text-center border-b-2 border-black p-6">
+          <h1 className="text-3xl font-bold mb-2">EVEREST SCHOOL</h1>
+          <p className="text-lg mb-2">ACADEMIC TRANSCRIPT</p>
+          <p className="text-sm">Session: 2023-2024</p>
+        </div>
+
+        {/* Student Info */}
+        <div className="p-6 border-b border-black">
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <div className="flex">
+                <span className="font-bold w-32">Student Name:</span>
+                <span className="border-b border-dotted border-black flex-1 px-2">{student.student_name}</span>
               </div>
-
-              <SectionBox>
-                <div className="p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">School*</label>
-                      <select 
-                        value={viewStudentsMarksForm.schoolId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, schoolId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {schoolsList.map(school => (
-                          <option key={school.id} value={school.id}>{school.school_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Batch No.*</label>
-                      <select 
-                        value={viewStudentsMarksForm.batchId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, batchId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {batchesList.map(batch => (
-                          <option key={batch.id} value={batch.id}>{batch.batch_no}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Class*</label>
-                      <select 
-                        value={viewStudentsMarksForm.classId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, classId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {classesList.map(cls => (
-                          <option key={cls.id} value={cls.id}>{cls.class_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Section*</label>
-                      <select 
-                        value={viewStudentsMarksForm.sectionId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, sectionId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {sectionsList.map(section => (
-                          <option key={section.id} value={section.id}>{section.section_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Subject</label>
-                      <select 
-                        value={viewStudentsMarksForm.subjectId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, subjectId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {subjectsList.map(subject => (
-                          <option key={subject.id} value={subject.id}>{subject.subject_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Exam Type</label>
-                      <select 
-                        value={viewStudentsMarksForm.examTypeId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, examTypeId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {examTypesList.map(type => (
-                          <option key={type.id} value={type.id}>{type.exam_type}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Exam Name</label>
-                      <select 
-                        value={viewStudentsMarksForm.examNameId}
-                        onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, examNameId: e.target.value }))}
-                        className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                      >
-                        <option value="">--- Select ---</option>
-                        {examNamesList.map(exam => (
-                          <option key={exam.id} value={exam.id}>{exam.exam_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Print Date</label>
-                    <Input 
-                      type="date" 
-                      value={viewStudentsMarksForm.printDate}
-                      onChange={(e) => setViewStudentsMarksForm(p => ({ ...p, printDate: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
-                  <BlueBtn>
-                    SEARCH
-                  </BlueBtn>
-                </div>
-              </SectionBox>
-
-              {viewStudentsMarksForm.schoolId && viewStudentsMarksForm.batchId && viewStudentsMarksForm.classId && viewStudentsMarksForm.sectionId && (
-                <div className="bg-white border border-gray-300 mt-6 rounded-lg shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-blue-50 to-blue-100">
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-800 text-left">Roll No</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-800 text-left">Student Name</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-800 text-center">Class</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-800 text-center">Section</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-800 text-center">Subject</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-800 text-center">Full Marks</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-blue-700 text-center bg-blue-50">Theory</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-blue-700 text-center bg-blue-50">Practical</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-green-700 text-center bg-green-50">Total</th>
-                          <th className="border border-gray-200 px-3 py-3 text-sm font-semibold text-purple-700 text-center bg-purple-50">Grade</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {viewStudentsList.length > 0 ? viewStudentsList.map((student, idx) => {
-                          const theoryObtained = viewStudentMarks[student.id]?.theoryObtained || '';
-                          const practicalObtained = viewStudentMarks[student.id]?.practicalObtained || '';
-                          const totalMarks = (parseInt(theoryObtained) || 0) + (parseInt(practicalObtained) || 0);
-                          const grade = totalMarks >= 90 ? 'A+' : totalMarks >= 80 ? 'A' : totalMarks >= 70 ? 'B' : totalMarks >= 60 ? 'C' : totalMarks >= 50 ? 'D' : 'F';
-                          const gradeColor = grade === 'A+' || grade === 'A' ? 'text-green-600 font-semibold' : 
-                                           grade === 'B' || grade === 'C' ? 'text-yellow-600 font-semibold' : 'text-red-600 font-semibold';
-                          
-                          return (
-                          <tr key={student.id} className="hover:bg-blue-50 transition-colors duration-200">
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700 font-medium">{student.roll_no || student.roll_number || idx + 1}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700">{student.first_name} {student.last_name}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700 text-center">{student.class || classesList.find(c => c.id === viewStudentsMarksForm.classId)?.class_name}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700 text-center">{student.section || sectionsList.find(s => s.id === viewStudentsMarksForm.sectionId)?.section_name}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700 text-center">{subjectsList.find(s => s.id === viewStudentsMarksForm.subjectId)?.subject_name || '-'}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-gray-700 text-center font-medium">100</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-blue-700 text-center font-medium bg-white">{theoryObtained || '-'}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-blue-700 text-center font-medium bg-white">{practicalObtained || '-'}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-green-700 text-center font-semibold bg-white">{totalMarks || '-'}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm text-center bg-white">
-                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${gradeColor}`}>{grade}</span>
-                            </td>
-                          </tr>
-                        )}) : (
-                          <tr>
-                            <td colSpan={10} className="border border-gray-200 px-3 py-8 text-sm text-center text-gray-500">
-                              <div className="flex flex-col items-center">
-                                <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <p className="font-medium">No students found</p>
-                                <p className="text-xs text-gray-400 mt-1">Please select filters and search</p>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+              <div className="flex">
+                <span className="font-bold w-32">Roll Number:</span>
+                <span className="border-b border-dotted border-black flex-1 px-2">{student.roll_no}</span>
+              </div>
+              <div className="flex">
+                <span className="font-bold w-32">Class:</span>
+                <span className="border-b border-dotted border-black flex-1 px-2">{student.class_name}</span>
+              </div>
             </div>
+            <div className="space-y-2">
+              <div className="flex">
+                <span className="font-bold w-32">Section:</span>
+                <span className="border-b border-dotted border-black flex-1 px-2">{student.section_name}</span>
+              </div>
+              <div className="flex">
+                <span className="font-bold w-32">Date:</span>
+                <span className="border-b border-dotted border-black flex-1 px-2">{form.printDate || new Date().toLocaleDateString()}</span>
+              </div>
+              <div className="w-24 h-32 border-2 border-black ml-auto">
+                <div className="text-center text-xs mt-28">PHOTO</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Marks Table */}
+        <div className="p-6">
+          <table className="w-full border-2 border-black">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-black px-3 py-2 text-sm font-bold">S.No</th>
+                <th className="border border-black px-3 py-2 text-sm font-bold">SUBJECT</th>
+                <th className="border border-black px-3 py-2 text-sm font-bold">THEORY<br/>MARKS</th>
+                <th className="border border-black px-3 py-2 text-sm font-bold">PRACTICAL<br/>MARKS</th>
+                <th className="border border-black px-3 py-2 text-sm font-bold">TOTAL<br/>MARKS</th>
+                <th className="border border-black px-3 py-2 text-sm font-bold">GRADE</th>
+                <th className="border border-black px-3 py-2 text-sm font-bold">RESULT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {form.subjectId ? (
+                (() => {
+                  const mark = Object.values(student.subjects)[0] as any;
+                  const totalObtained = (mark?.theory_marks_obtained || 0) + (mark?.practical_marks_obtained || 0);
+                  const totalPossible = (examMarks?.th_marks || 0) + (examMarks?.pr_in_marks || 0);
+                  const overallPercent = totalPossible > 0 ? ((totalObtained / totalPossible) * 100).toFixed(1) : '0.0';
+                  const gradeData = calculateGrade(parseFloat(overallPercent), grades);
+                  
+                  return (
+                    <tr>
+                      <td className="border border-black px-3 py-2 text-center font-medium">1</td>
+                      <td className="border border-black px-3 py-2 font-medium">{selectedSubjectName}</td>
+                      <td className="border border-black px-3 py-2 text-center">
+                        {mark?.theory_marks_obtained || 0}/{examMarks?.th_marks || 0}
+                      </td>
+                      <td className="border border-black px-3 py-2 text-center">
+                        {(examMarks?.pr_in_marks || 0) > 0 ? `${mark?.practical_marks_obtained || 0}/${examMarks.pr_in_marks}` : 'N/A'}
+                      </td>
+                      <td className="border border-black px-3 py-2 text-center font-bold">{totalObtained}/{totalPossible}</td>
+                      <td className="border border-black px-3 py-2 text-center font-bold">{gradeData.grade}</td>
+                      <td className="border border-black px-3 py-2 text-center font-bold">
+                        {parseFloat(overallPercent) >= 40 ? 'PASS' : 'FAIL'}
+                      </td>
+                    </tr>
+                  );
+                })()
+              ) : (
+                Object.keys(student.subjects).map((subjectId, index) => {
+                  const mark = student.subjects[subjectId];
+                  const totalObtained = (mark.theory_marks_obtained || 0) + (mark.practical_marks_obtained || 0);
+                  const examMark = mark.exam_marks;
+                  const totalPossible = examMark ? (examMark.th_marks || 0) + (examMark.pr_in_marks || 0) : 200;
+                  const overallPercent = totalPossible > 0 ? ((totalObtained / totalPossible) * 100).toFixed(1) : '0.0';
+                  const gradeData = calculateGrade(parseFloat(overallPercent), grades);
+                  
+                  return (
+                    <tr key={subjectId}>
+                      <td className="border border-black px-3 py-2 text-center font-medium">{index + 1}</td>
+                      <td className="border border-black px-3 py-2 font-medium">{mark.subject_name}</td>
+                      <td className="border border-black px-3 py-2 text-center">
+                        {mark.theory_marks_obtained || 0}/{examMark?.th_marks || 0}
+                      </td>
+                      <td className="border border-black px-3 py-2 text-center">
+                        {(examMark?.pr_in_marks || 0) > 0 ? `${mark.practical_marks_obtained || 0}/${examMark.pr_in_marks}` : 'N/A'}
+                      </td>
+                      <td className="border border-black px-3 py-2 text-center font-bold">{totalObtained}/{totalPossible}</td>
+                      <td className="border border-black px-3 py-2 text-center font-bold">{gradeData.grade}</td>
+                      <td className="border border-black px-3 py-2 text-center font-bold">
+                        {parseFloat(overallPercent) >= 40 ? 'PASS' : 'FAIL'}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Overall Summary */}
+        {!form.subjectId && (
+          <div className="px-6 pb-6">
+            <div className="border-2 border-black p-4">
+              <h3 className="text-lg font-bold mb-4 text-center">OVERALL PERFORMANCE</h3>
+              {(() => {
+                const allSubjectMarks = Object.values(student.subjects);
+                const grandTotal = allSubjectMarks.reduce((sum: number, mark: any) => 
+                  sum + (mark.theory_marks_obtained || 0) + (mark.practical_marks_obtained || 0), 0);
+                const grandTotalPossible = allSubjectMarks.reduce((sum: number, mark: any) => {
+                  const examMark = mark.exam_marks;
+                  return sum + (examMark ? (examMark.th_marks || 0) + (examMark.pr_in_marks || 0) : 200);
+                }, 0);
+                const grandPercent = grandTotalPossible > 0 ? ((grandTotal / grandTotalPossible) * 100).toFixed(1) : '0.0';
+                const grandGradeData = calculateGrade(parseFloat(grandPercent), grades);
+                
+                return (
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div className="border border-black p-3">
+                      <p className="text-sm font-bold">TOTAL MARKS</p>
+                      <p className="text-xl font-bold">{grandTotal}/{grandTotalPossible}</p>
+                    </div>
+                    <div className="border border-black p-3">
+                      <p className="text-sm font-bold">PERCENTAGE</p>
+                      <p className="text-xl font-bold">{grandPercent}%</p>
+                    </div>
+                    <div className="border border-black p-3">
+                      <p className="text-sm font-bold">GRADE</p>
+                      <p className="text-xl font-bold">{grandGradeData.grade}</p>
+                    </div>
+                    <div className="border border-black p-3">
+                      <p className="text-sm font-bold">RESULT</p>
+                      <p className="text-xl font-bold">{parseFloat(grandPercent) >= 40 ? 'PASS' : 'FAIL'}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="border-t-2 border-black p-6">
+          <div className="grid grid-cols-3 gap-8 text-center">
+            <div>
+              <div className="border-t border-black mt-16 pt-2">
+                <p className="text-sm font-bold">CLASS TEACHER</p>
+              </div>
+            </div>
+            <div>
+              <div className="border-t border-black mt-16 pt-2">
+                <p className="text-sm font-bold">PRINCIPAL</p>
+              </div>
+            </div>
+            <div>
+              <div className="border-t border-black mt-16 pt-2">
+                <p className="text-sm font-bold">PARENT SIGNATURE</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Print Button - Hidden in print */}
+        <div className="mt-8 text-center space-x-4 print:hidden">
+          <button 
+            onClick={() => window.print()}
+            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+          >
+            Print Marksheet
+          </button>
+          <button 
+            onClick={() => navigate('/exams/view_students_marks')}
+            className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700"
+          >
+            Back to View Marks
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ViewStudentsMarksModule;

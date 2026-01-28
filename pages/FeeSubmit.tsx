@@ -110,9 +110,21 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSchools = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('schools').select('*');
-      if (error) throw error;
-      setSchools(data || []);
+      if (user.school_id) {
+        // If user has school_id, only show their school
+        const { data, error } = await supabaseService.supabase
+          .from('schools')
+          .select('*')
+          .eq('id', user.school_id);
+        if (error) throw error;
+        setSchools(data || []);
+        // Auto-select the user's school
+        if (data && data.length > 0) {
+          setForm(prev => ({ ...prev, school: data[0].school_name }));
+        }
+      } else {
+        setSchools([]);
+      }
     } catch (e) {
       console.error('Error fetching schools:', e);
     }
@@ -120,9 +132,13 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchBatches = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('batches').select('*');
-      if (error) throw error;
-      setBatches(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.getBatches(user.school_id);
+        if (error) throw error;
+        setBatches(data || []);
+      } else {
+        setBatches([]);
+      }
     } catch (e) {
       console.error('Error fetching batches:', e);
     }
@@ -130,9 +146,13 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchClasses = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('classes').select('*');
-      if (error) throw error;
-      setClasses(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.getClasses(user.school_id);
+        if (error) throw error;
+        setClasses(data || []);
+      } else {
+        setClasses([]);
+      }
     } catch (e) {
       console.error('Error fetching classes:', e);
     }
@@ -140,9 +160,13 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSections = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('sections').select('*');
-      if (error) throw error;
-      setSections(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.getSections(user.school_id);
+        if (error) throw error;
+        setSections(data || []);
+      } else {
+        setSections([]);
+      }
     } catch (e) {
       console.error('Error fetching sections:', e);
     }
@@ -160,9 +184,16 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchFeeMonths = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('fee_months').select('*');
-      if (error) throw error;
-      setFeeMonths(data || []);
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('fee_months')
+          .select('*')
+          .eq('school_id', user.school_id);
+        if (error) throw error;
+        setFeeMonths(data || []);
+      } else {
+        setFeeMonths([]);
+      }
     } catch (e) {
       console.error('Error fetching fee months:', e);
     }
@@ -286,6 +317,11 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
     popup.feeHeadsData = feeHeads;
     popup.feeMonthsData = feeMonths;
     popup.selectedStudentId = student.id;
+    // Pass user data to popup with null check
+    popup.userData = user;
+    
+    // Debug log to check user data
+    console.log('User data being passed to popup:', user);
     
     // Pass submitted payments to popup
     const { data: currentSubmittedPayments, error: paymentsError } = await supabaseService.supabase
@@ -389,6 +425,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 batch: paymentData.batch,
                 class: paymentData.class,
                 section: paymentData.section,
+                school_id: paymentData.school_id,
                 created_at: paymentData.created_at
               });
           }
@@ -662,6 +699,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 batch: '${form.batch}',
                 class: '${form.class}',
                 section: '${form.section}',
+                school_id: '${user.school_id}',
                 created_at: new Date().toISOString()
               };
               
@@ -757,66 +795,8 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
         const { data: feeHeadsData } = await supabaseService.supabase.from('fee_heads').select('*');
         const { data: feeMonthsData } = await supabaseService.supabase.from('fee_months').select('*');
         
-        // Filter out fully paid fees
-        const newFees = selectedFees.filter(fee => {
-          // Find the student fee record
-          const feeHeadObj = feeHeadsData?.find(fh => fh.fee_head === fee.head);
-          const monthObj = feeMonthsData?.find(m => m.month_name === fee.month);
-          
-          if (!feeHeadObj || !monthObj) return false;
-          
-          const studentFee = studentFees?.find(sf => 
-            sf.month_id === monthObj.id && sf.fee_head_id === feeHeadObj.id
-          );
-          
-          if (!studentFee) return false; // No fee record found
-          
-          // Calculate total paid for this fee
-          const totalPaid = existingPayments?.filter(ep => 
-            ep.month_name === fee.month && ep.fee_head === fee.head
-          ).reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0) || 0;
-          
-          const remainingAmount = parseFloat(studentFee.amount) - totalPaid;
-          
-          return remainingAmount > 0; // Only allow if there's remaining amount
-        });
-        
-        if (newFees.length === 0) {
-          alert('All selected fees have already been submitted!');
-          return { success: false };
-        }
-        
-        if (newFees.length < selectedFees.length) {
-          const skipped = selectedFees.length - newFees.length;
-          alert(`${skipped} fee(s) already submitted. Saving only new fees.`);
-        }
-        
-        // Filter out fees that have no remaining amount or are fully paid
-        const allowedFees = newFees.filter(fee => {
-          const existingPayment = existingPayments?.find(ep => 
-            ep.month_name === fee.month && ep.fee_head === fee.head
-          );
-          
-          // If existing payment has no remaining amount, don't allow update
-          if (existingPayment && parseFloat(existingPayment.remaining_amount || 0) <= 0) {
-            return false;
-          }
-          
-          return true;
-        });
-        
-        if (allowedFees.length === 0) {
-          alert('No fees can be updated. All selected fees are fully paid.');
-          return { success: false };
-        }
-        
-        if (allowedFees.length < newFees.length) {
-          const blocked = newFees.length - allowedFees.length;
-          alert(`${blocked} fee(s) are fully paid and cannot be updated. Processing remaining fees.`);
-        }
-        
-        // Save each allowed fee as separate record or update existing ones
-        for (const fee of allowedFees) {
+        // Save each fee as separate record or update existing ones
+        for (const fee of selectedFees) {
           // Check if this fee head/month combination already exists
           const existingPayment = existingPayments?.find(ep => 
             ep.month_name === fee.month && ep.fee_head === fee.head
@@ -870,6 +850,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 batch: paymentData.batch,
                 class: paymentData.class,
                 section: paymentData.section,
+                school_id: paymentData.school_id,
                 created_at: paymentData.created_at
               });
           }
@@ -1166,7 +1147,9 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
               ).join('');
               
               receiptWindow.document.write('<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;margin-top:8px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A6}.bill{page-break-after:always}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span id="receipt-display">' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('other-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('fine-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + (totalAmount + (parseFloat(document.getElementById('other-amount').value) || 0) + (parseFloat(document.getElementById('fine-amount').value) || 0) - (parseFloat(document.getElementById('discount').value) || 0)) + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Remaining Amount:</td><td class="moveright">Rs. ' + totalRemainingAmount + '</td></tr><tr><td colspan="2" style="font-size:10px;font-weight:bold;padding:10px;">Amount In Words:</td><td colspan="2">' + amountInWords + ' Only/-</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div></body></html>');
-              receiptWindow.document.close();
+              if (receiptWindow && receiptWindow.document) {
+                receiptWindow.document.close();
+              }
               
               alert('Payment Submitted Successfully!');
               window.close();
@@ -1203,6 +1186,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 batch: '${form.batch}',
                 class: '${form.class}',
                 section: '${form.section}',
+                school_id: '${user.school_id}',
                 created_at: new Date().toISOString()
               };
               

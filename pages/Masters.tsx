@@ -57,6 +57,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     shortName: ''
   });
   const [sections, setSections] = useState([]);
+  const [editingSection, setEditingSection] = useState<any>(null);
+  const [showEditSection, setShowEditSection] = useState(false);
   const [showAddSection, setShowAddSection] = useState(false);
   const [sectionFormData, setSectionFormData] = useState({
     sectionName: '',
@@ -172,7 +174,11 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadBatchClasses = async () => {
-    const { data, error } = await supabaseService.getBatchClasses();
+    if (!user.school_id) {
+      setBatchClasses([]);
+      return;
+    }
+    const { data, error } = await supabaseService.getBatchClasses(user.school_id);
     if (error) {
       console.error('Error loading batch classes:', error);
     } else {
@@ -196,7 +202,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     setLoading(true);
     const batchClassData = {
       batch_id: selectedBatch,
-      class_ids: selectedClasses
+      class_ids: selectedClasses,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.updateBatchClass(editingBatchClass.id, batchClassData);
@@ -240,7 +247,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadSubjects = async () => {
-    const { data, error } = await supabaseService.getSubjects();
+    const { data, error } = await supabaseService.getSubjects(user.school_id);
     if (error) {
       console.error('Error loading subjects:', error);
     } else {
@@ -255,7 +262,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       subject_name: subjectFormData.subjectName,
       sort_name: subjectFormData.sortName,
       order_no: subjectFormData.orderNo,
-      class_ids: selectedClasses
+      class_ids: selectedClasses,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.createSubject(subjectData);
@@ -281,7 +289,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       subject_name: subjectFormData.subjectName,
       sort_name: subjectFormData.sortName,
       order_no: subjectFormData.orderNo,
-      class_ids: selectedClasses
+      class_ids: selectedClasses,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.updateSubject(editingSubject.id, subjectData);
@@ -317,7 +326,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadSubjectAssignments = async () => {
-    const { data, error } = await supabaseService.getSubjectAssignments();
+    const { data, error } = await supabaseService.getSubjectAssignments(user.school_id);
     if (error) {
       console.error('Error loading subject assignments:', error);
     } else {
@@ -349,6 +358,19 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       return;
     }
     
+    // Check if this combination already exists
+    const existingRecord = subjectAssignments.find(item => 
+      String(item.school_id) === String(selectedSchool) && 
+      String(item.batch_id) === String(selectedAssignmentBatch) &&
+      String(item.class_id) === String(selectedAssignmentClass) &&
+      String(item.section_id) === String(selectedAssignmentSections[0])
+    );
+    
+    if (existingRecord && !showEditAssignment) {
+      alert('Warning: This combination of School, Batch, Class, and Section is already added. Please edit the existing record instead.');
+      return;
+    }
+    
     setLoading(true);
     
     const assignmentData = {
@@ -356,15 +378,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       batch_id: String(selectedAssignmentBatch),
       class_id: String(selectedAssignmentClass),
       section_id: String(selectedAssignmentSections[0]),
-      subject_ids: selectedAssignmentSubjects.map(id => String(id))
+      subject_ids: selectedAssignmentSubjects.map(id => String(id)),
+      updated_at: new Date().toISOString()
     };
     
-    const { data, error } = await supabaseService.createSubjectAssignment(assignmentData);
-    
-    if (error) {
-      console.error('Error creating subject assignment:', error);
-      alert(`Error creating subject assignment: ${error.message}`);
-    } else {
+    try {
+      const { data, error } = await supabaseService.createSubjectAssignment(assignmentData);
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
       alert('Subject assignment created successfully!');
       setSelectedSchool('');
       setSelectedAssignmentBatch('');
@@ -372,6 +396,9 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       setSelectedAssignmentSections([]);
       setSelectedAssignmentSubjects([]);
       loadSubjectAssignments();
+    } catch (error: any) {
+      console.error('Error creating subject assignment:', error);
+      alert(`Error: ${error.message}`);
     }
     setLoading(false);
   };
@@ -596,7 +623,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadDepartments = async () => {
-    const { data, error } = await supabaseService.getDepartments();
+    const { data, error } = await supabaseService.getDepartments(user.school_id);
     if (error) {
       console.error('Error loading departments:', error);
     } else {
@@ -610,7 +637,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       order_no: departmentFormData.orderNo,
       department_name: departmentFormData.departmentName,
       short_name: departmentFormData.shortName,
-      about_department: departmentFormData.aboutDepartment
+      about_department: departmentFormData.aboutDepartment,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.createDepartment(departmentData);
@@ -645,7 +673,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       order_no: departmentFormData.orderNo,
       department_name: departmentFormData.departmentName,
       short_name: departmentFormData.shortName,
-      about_department: departmentFormData.aboutDepartment
+      about_department: departmentFormData.aboutDepartment,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.updateDepartment(editingDepartment.id, departmentData);
@@ -680,7 +709,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadDesignations = async () => {
-    const { data, error } = await supabaseService.getDesignations();
+    const { data, error } = await supabaseService.getDesignations(user.school_id);
     if (error) {
       console.error('Error loading designations:', error);
     } else {
@@ -693,7 +722,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     const designationData = {
       department_id: designationFormData.departmentId,
       designation_name: designationFormData.designationName,
-      short_name: designationFormData.shortName
+      short_name: designationFormData.shortName,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.createDesignation(designationData);
@@ -726,7 +756,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     const designationData = {
       department_id: designationFormData.departmentId,
       designation_name: designationFormData.designationName,
-      short_name: designationFormData.shortName
+      short_name: designationFormData.shortName,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.updateDesignation(editingDesignation.id, designationData);
@@ -767,29 +798,51 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     }
     
     setLoading(true);
+    
+    // Check if record already exists for this batch and school
+    const existingRecord = batchClasses.find(item => 
+      String(item.batch_id) === String(selectedBatch) && 
+      String(item.school_id) === String(user.school_id)
+    );
+    
     const batchClassData = {
       batch_id: selectedBatch,
-      class_ids: selectedClasses
+      class_ids: selectedClasses,
+      school_id: user.school_id
     };
     
-    const { data, error } = await supabaseService.createBatchClass(batchClassData);
-    
-    if (error) {
-      console.error('Error creating batch class:', error);
-      alert(`Error creating batch class: ${error.message}`);
-    } else {
-      alert('Batch classes added successfully!');
+    try {
+      let result;
+      if (existingRecord) {
+        // Update existing record
+        result = await supabaseService.updateBatchClass(existingRecord.id, batchClassData);
+        if (result.error) throw new Error(result.error.message);
+        alert('Batch classes updated successfully!');
+      } else {
+        // Create new record
+        result = await supabaseService.createBatchClass(batchClassData);
+        if (result.error) throw new Error(result.error.message);
+        alert('Batch classes added successfully!');
+      }
+      
       setSelectedBatch('');
       setSelectedClasses([]);
       loadBatchClasses();
+    } catch (error: any) {
+      console.error('Error with batch class:', error);
+      alert(`Error: ${error.message}`);
     }
     setLoading(false);
   };
 
   const loadSections = async () => {
     console.log('Loading sections from Supabase...');
+    if (user.role === 'Super Admin' || !user.school_id) {
+      setSections([]);
+      return;
+    }
     try {
-      const { data, error } = await supabaseService.getSections();
+      const { data, error } = await supabaseService.getSections(user.school_id);
       console.log('Sections response:', { data, error });
       if (error) {
         console.error('Error loading sections:', error);
@@ -817,7 +870,11 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadManageSections = async () => {
-    const { data, error } = await supabaseService.getManageSections();
+    if (!user.school_id) {
+      setManageSections([]);
+      return;
+    }
+    const { data, error } = await supabaseService.getManageSections(user.school_id);
     if (error) {
       console.error('Error loading manage sections:', error);
     } else {
@@ -843,7 +900,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     const manageSectionData = {
       batch_id: selectedSectionBatch,
       class_id: selectedSectionClass,
-      section_ids: selectedSections
+      section_ids: selectedSections,
+      school_id: user.school_id
     };
     
     try {
@@ -884,38 +942,82 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     }
     
     setLoading(true);
+    
+    // Check if record already exists
+    const existingRecord = manageSections.find(item => 
+      String(item.batch_id) === String(selectedSectionBatch) && 
+      String(item.class_id) === String(selectedSectionClass) &&
+      String(item.school_id) === String(user.school_id)
+    );
+    
     const manageSectionData = {
       batch_id: selectedSectionBatch,
       class_id: selectedSectionClass,
-      section_ids: selectedSections
+      section_ids: selectedSections,
+      school_id: user.school_id
     };
     
     try {
-      const { data, error } = await supabaseService.createManageSection(manageSectionData);
-      
-      if (error) {
-        throw new Error(error.message);
+      let result;
+      if (existingRecord) {
+        // Update existing record
+        result = await supabaseService.updateManageSection(existingRecord.id, manageSectionData);
+        if (result.error) throw new Error(result.error.message);
+        alert('Batch class sections updated successfully!');
+      } else {
+        // Create new record
+        result = await supabaseService.createManageSection(manageSectionData);
+        if (result.error) throw new Error(result.error.message);
+        alert('Batch class sections added successfully!');
       }
       
-      alert('Batch class sections added successfully!');
       setSelectedSectionBatch('');
       setSelectedSectionClass('');
       setSelectedSections([]);
       loadManageSections();
     } catch (error: any) {
-      console.error('Supabase error, using local storage:', error);
+      console.error('Supabase error:', error);
+      alert(`Error: ${error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const handleEditSection = (section: any) => {
+    setEditingSection(section);
+    setSectionFormData({
+      sectionName: section.section_name || '',
+      shortName: section.short_name || ''
+    });
+    setShowEditSection(true);
+    setShowAddSection(false);
+  };
+
+  const handleUpdateSection = async () => {
+    if (!editingSection) return;
+    
+    setLoading(true);
+    const sectionData = {
+      section_name: sectionFormData.sectionName,
+      short_name: sectionFormData.shortName,
+      school_id: user.school_id
+    };
+    
+    try {
+      const { data, error } = await supabaseService.updateSection(editingSection.id, sectionData);
       
-      const newEntry = {
-        id: Date.now().toString(),
-        ...manageSectionData,
-        created_at: new Date().toISOString()
-      };
-      
-      setManageSections(prev => [...prev, newEntry]);
-      setSelectedSectionBatch('');
-      setSelectedSectionClass('');
-      setSelectedSections([]);
-      alert('Batch class sections added successfully (local storage)!');
+      if (error) {
+        console.error('Error updating section:', error);
+        alert(`Error updating section: ${error.message}`);
+      } else {
+        alert('Section updated successfully!');
+        setShowEditSection(false);
+        setEditingSection(null);
+        setSectionFormData({ sectionName: '', shortName: '' });
+        loadSections();
+      }
+    } catch (error: any) {
+      console.error('Error updating section:', error);
+      alert(`Error updating section: ${error.message}`);
     }
     setLoading(false);
   };
@@ -924,7 +1026,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     setLoading(true);
     const sectionData = {
       section_name: sectionFormData.sectionName,
-      short_name: sectionFormData.shortName
+      short_name: sectionFormData.shortName,
+      school_id: user.school_id
     };
     
     try {
@@ -950,7 +1053,11 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadClasses = async () => {
-    const { data, error } = await supabaseService.getClasses();
+    if (user.role === 'Super Admin' || !user.school_id) {
+      setClasses([]);
+      return;
+    }
+    const { data, error } = await supabaseService.getClasses(user.school_id);
     if (error) {
       console.error('Error loading classes:', error);
     } else {
@@ -966,7 +1073,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     setLoading(true);
     const classData = {
       class_name: classFormData.className,
-      short_name: classFormData.shortName
+      short_name: classFormData.shortName,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.createClass(classData);
@@ -1002,7 +1110,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     setLoading(true);
     const classData = {
       class_name: classFormData.className,
-      short_name: classFormData.shortName
+      short_name: classFormData.shortName,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.updateClass(editingClass.id, classData);
@@ -1020,7 +1129,11 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadBatches = async () => {
-    const { data, error } = await supabaseService.getBatches();
+    if (user.role === 'Super Admin' || !user.school_id) {
+      setBatches([]);
+      return;
+    }
+    const { data, error } = await supabaseService.getBatches(user.school_id);
     if (error) {
       console.error('Error loading batches:', error);
     } else {
@@ -1052,7 +1165,8 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       batch_no: batchFormData.batchNo,
       short_name: batchFormData.shortName,
       based_on_batch: batchFormData.basedOnBatch || null,
-      is_current_batch: batchFormData.isCurrentBatch
+      is_current_batch: batchFormData.isCurrentBatch,
+      school_id: user.school_id
     };
     
     const { data, error } = await supabaseService.updateBatch(editingBatch.id, batchData);
@@ -1086,15 +1200,35 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleCreateBatch = async () => {
+    console.log('Creating batch with user:', user);
+    console.log('User school_id:', user.school_id);
+    
+    // Get school_id from user or from the first available school
+    let schoolId = user.school_id;
+    if (!schoolId && schools.length > 0) {
+      schoolId = schools[0].id;
+      console.log('Using first available school_id:', schoolId);
+    }
+    
+    if (!schoolId) {
+      alert('Error: No school ID available. Please ensure at least one school exists.');
+      return;
+    }
+    
     setLoading(true);
     const batchData = {
       batch_no: batchFormData.batchNo,
       short_name: batchFormData.shortName,
       based_on_batch: batchFormData.basedOnBatch || null,
-      is_current_batch: batchFormData.isCurrentBatch
+      is_current_batch: batchFormData.isCurrentBatch,
+      school_id: schoolId
     };
     
+    console.log('Batch data being sent:', batchData);
+    
     const { data, error } = await supabaseService.createBatch(batchData);
+    
+    console.log('Supabase response:', { data, error });
     
     if (error) {
       console.error('Error creating batch:', error);
@@ -1119,7 +1253,17 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       console.error('Error loading schools:', error);
     } else {
       console.log('Schools loaded:', data);
-      setSchools(data || []);
+      // Filter schools based on user role
+      if (user.role === 'Super Admin') {
+        // Superadmin sees no existing schools - fresh start
+        setSchools([]);
+      } else if (user.school_id) {
+        // Regular users see only their school
+        const userSchools = data?.filter(s => s.id === user.school_id) || [];
+        setSchools(userSchools);
+      } else {
+        setSchools([]);
+      }
     }
   };
 
@@ -1308,11 +1452,6 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleCreateSchool = async () => {
-    if (schools.length >= 1) {
-      alert('Only one school is allowed. Please edit the existing school instead.');
-      return;
-    }
-    
     setLoading(true);
     
     let logoUrl = null;
@@ -1344,7 +1483,9 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       phone: schoolFormData.phoneNo,
       address: schoolFormData.address,
       email: schoolFormData.email,
-      website_url: schoolFormData.websiteUrl
+      website_url: schoolFormData.websiteUrl,
+      username: schoolFormData.schoolName.toLowerCase().replace(/\s+/g, ''),
+      password: schoolFormData.phoneNo || '123456'
     };
     
     const { data, error } = await supabaseService.createSchool(schoolData);
@@ -1353,7 +1494,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       console.error('Error creating school:', error);
       alert(`Error creating school: ${error.message}`);
     } else {
-      alert('School created successfully!');
+      alert('School created successfully! You can now login with:\nUsername: ' + schoolData.username + '\nPassword: ' + schoolData.password);
       setSchoolFormData({
         schoolName: '',
         director: '',
@@ -1733,10 +1874,6 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
               </div>
               <button 
                 onClick={() => {
-                  if (schools.length >= 1) {
-                    alert('Only one school is allowed. Please edit the existing school instead.');
-                    return;
-                  }
                   setShowAddSchool(!showAddSchool);
                   setShowEditSchool(false);
                   setSchoolFormData({
@@ -1761,12 +1898,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                     websiteUrl: ''
                   });
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  schools.length >= 1 
-                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-                disabled={schools.length >= 1}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 <Plus size={16} />
                 {showAddSchool ? 'Cancel' : 'Add New School'}
@@ -2423,6 +2555,60 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
           </div>
         );
       case 'add_section':
+        if (showEditSection && editingSection) {
+          return (
+            <div>
+              <div className="mb-6 relative pb-4">
+                <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+                  Edit Section
+                </h2>
+                <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">Section:</label>
+                    <input 
+                      value={sectionFormData.sectionName}
+                      onChange={(e) => handleSectionInputChange('sectionName', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-bold text-gray-700 mb-2">ShortName:</label>
+                    <input 
+                      value={sectionFormData.shortName}
+                      onChange={(e) => handleSectionInputChange('shortName', e.target.value)}
+                      className="border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-400 w-full bg-white transition-colors" 
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 mt-6">
+                  <button 
+                    onClick={handleUpdateSection}
+                    disabled={loading}
+                    className="bg-[#3498db] text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    {loading ? 'UPDATING...' : 'UPDATE'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowEditSection(false);
+                      setEditingSection(null);
+                      setSectionFormData({ sectionName: '', shortName: '' });
+                    }}
+                    className="bg-gray-400 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all"
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div>
             <div className="mb-6 relative pb-4">
@@ -2518,7 +2704,11 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                         <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{section.section_name}</td>
                         <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{section.short_name}</td>
                         <td className="px-4 lg:px-8 py-3 lg:py-5">
-                          <button className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" title="Edit">
+                          <button 
+                            onClick={() => handleEditSection(section)}
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all" 
+                            title="Edit"
+                          >
                             <Edit size={18} />
                           </button>
                         </td>
@@ -2566,7 +2756,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                     >
                       <input
                         type="checkbox"
-                        checked={selectedClasses.includes(classItem.id)}
+                        checked={selectedClasses.includes(String(classItem.id))}
                         onChange={() => handleClassToggle(classItem.id)}
                         className="absolute top-2 right-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
@@ -3065,6 +3255,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                     <tr className="bg-white border-b">
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sr.No.</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">School</th>
+                      <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Batch</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Class</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Section</th>
                       <th className="px-4 lg:px-8 py-3 lg:py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subjects</th>
@@ -3084,6 +3275,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
                         <tr key={assignment.id} className="hover:bg-blue-50/30 transition-colors group">
                           <td className="px-4 lg:px-8 py-3 lg:py-5 text-center text-gray-500 font-bold">{index + 1}</td>
                           <td className="px-4 lg:px-8 py-3 lg:py-5 font-black text-gray-900">{school?.school_name || 'N/A'}</td>
+                          <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{batch?.batch_no || 'N/A'}</td>
                           <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{classItem?.class_name || 'N/A'}</td>
                           <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{assignedSection?.section_name || 'N/A'}</td>
                           <td className="px-4 lg:px-8 py-3 lg:py-5 text-gray-600">{assignedSubjects.map(s => s.subject_name).join(',') || 'N/A'}</td>

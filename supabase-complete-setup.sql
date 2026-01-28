@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS batch_classes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   batch_id UUID REFERENCES batches(id) ON DELETE CASCADE,
   class_ids TEXT[], -- Array of class IDs
+  school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -83,6 +84,7 @@ CREATE TABLE IF NOT EXISTS manage_section (
   batch_id UUID REFERENCES batches(id) ON DELETE CASCADE,
   class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
   section_ids TEXT[], -- Array of section IDs
+  school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -124,6 +126,22 @@ INSERT INTO batches (batch_no, short_name, is_current_batch) VALUES
 ('2023-2024', '2023', false),
 ('2022-2023', '2022', false)
 ON CONFLICT DO NOTHING;
+
+-- Add school_id to existing tables if not exists
+ALTER TABLE batch_classes ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id) ON DELETE CASCADE;
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id) ON DELETE CASCADE;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id) ON DELETE CASCADE;
+ALTER TABLE sections ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id) ON DELETE CASCADE;
+ALTER TABLE manage_section ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES schools(id) ON DELETE CASCADE;
+
+-- Update existing records to have proper school_id
+UPDATE batch_classes SET school_id = (
+  SELECT id FROM schools LIMIT 1
+) WHERE school_id IS NULL;
+
+UPDATE manage_section SET school_id = (
+  SELECT id FROM schools LIMIT 1
+) WHERE school_id IS NULL;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_manage_section_batch_id ON manage_section(batch_id);

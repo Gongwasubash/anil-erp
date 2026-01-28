@@ -5,8 +5,13 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import Fees from './pages/Fees';
-import Exams from './pages/Exams';
+import ExamsSimple from './pages/ExamsSimple';
+import AddExamMarks from './pages/AddExamMarks';
 import AddStudentMarks from './pages/AddStudentMarks';
+import ViewStudentsMarks from './pages/ViewStudentsMarks';
+import ViewStudentsMarksModule from './pages/ViewStudentsMarksModule';
+import PrintAdmitCard from './pages/PrintAdmitCard';
+import AdmitCardPrint from './pages/AdmitCardPrint';
 import Masters from './pages/Masters';
 import Admin from './pages/Admin';
 import AddStudentVariableFee from './pages/AddStudentVariableFee';
@@ -48,24 +53,34 @@ const App: React.FC = () => {
   console.log('User found, showing main app');
   return (
     <Router>
-      <Layout user={user} onLogout={handleLogout}>
-        <Routes>
-          <Route path="/" element={<Dashboard user={user} />} />
-          <Route path="/students/*" element={<Students user={user} />} />
-          <Route path="/fees/*" element={<Fees user={user} />} />
-          <Route path="/exams/*" element={<Exams user={user} />} />
-          <Route path="/add-student-marks" element={<AddStudentMarks />} />
-          <Route path="/variable-fees/add_student_variable_fee" element={<AddStudentVariableFee user={user} />} />
-          <Route path="/variable-fees/print_pre_bill" element={<PrintPreBill user={user} />} />
-          <Route path="/variable-fees/fee_submit" element={<FeeSubmit user={user} />} />
-          <Route path="/variable-fees/daily_fee_receipt_register" element={<DailyFeeReceiptRegister user={user} />} />
-          <Route path="/hr/manage_employee" element={<ManageEmployee user={user} />} />
-          <Route path="/hr/add_employee" element={<AddEmployee user={user} />} />
-          <Route path="/masters/*" element={<Masters user={user} />} />
-          <Route path="/admin/*" element={<Admin user={user} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        <Route path="/view-students-marks-module" element={<ViewStudentsMarksModule />} />
+        <Route path="/admit-card-print" element={<AdmitCardPrint />} />
+        <Route path="/*" element={
+          <Layout user={user} onLogout={handleLogout}>
+            <Routes>
+              <Route path="/" element={<Dashboard user={user} />} />
+              <Route path="/students/*" element={<Students user={user} />} />
+              <Route path="/fees/*" element={<Fees user={user} />} />
+              <Route path="/exams/*" element={<ExamsSimple user={user} />} />
+              <Route path="/exams/add_exam_marks" element={<AddExamMarks user={user} />} />
+              <Route path="/exams/add_students_marks" element={<AddStudentMarks user={user} />} />
+              <Route path="/exams/view_students_marks" element={<ViewStudentsMarks user={user} />} />
+              <Route path="/exams/print_admit_card" element={<PrintAdmitCard user={user} />} />
+              <Route path="/add-student-marks" element={<AddStudentMarks user={user} />} />
+              <Route path="/variable-fees/add_student_variable_fee" element={<AddStudentVariableFee user={user} />} />
+              <Route path="/variable-fees/print_pre_bill" element={<PrintPreBill user={user} />} />
+              <Route path="/variable-fees/fee_submit" element={<FeeSubmit user={user} />} />
+              <Route path="/variable-fees/daily_fee_receipt_register" element={<DailyFeeReceiptRegister user={user} />} />
+              <Route path="/hr/manage_employee" element={<ManageEmployee user={user} />} />
+              <Route path="/hr/add_employee" element={<AddEmployee user={user} />} />
+              <Route path="/masters/*" element={<Masters user={user} />} />
+              <Route path="/admin/*" element={<Admin user={user} />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Layout>
+        } />
+      </Routes>
     </Router>
   );
 };

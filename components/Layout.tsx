@@ -45,20 +45,35 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
   useEffect(() => {
     fetchSchoolData();
+    
+    // Listen for school creation events
+    const handleSchoolCreated = () => {
+      fetchSchoolData();
+    };
+    
+    window.addEventListener('schoolCreated', handleSchoolCreated);
+    return () => window.removeEventListener('schoolCreated', handleSchoolCreated);
   }, []);
 
   const fetchSchoolData = async () => {
     try {
-      const { data, error } = await supabaseService.supabase
-        .from('schools')
-        .select('*')
-        .limit(1)
-        .single();
-      
-      if (error) throw error;
-      setSchoolData(data);
+      // If user has school_id, fetch that specific school
+      if (user.school_id) {
+        const { data, error } = await supabaseService.supabase
+          .from('schools')
+          .select('*')
+          .eq('id', user.school_id)
+          .single();
+        
+        if (error) throw error;
+        setSchoolData(data);
+      } else {
+        // For users without school_id, don't show any school data
+        setSchoolData(null);
+      }
     } catch (e) {
       console.error('Error fetching school data:', e);
+      setSchoolData(null);
     }
   };
 
@@ -225,9 +240,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             </div>
             <div>
               <h1 className="font-bold text-gray-800 tracking-tight">
-                {schoolData?.school_name || 'EVEREST'}
+                {schoolData?.school_name || (user.role === 'Super Admin' ? 'School ERP' : 'EVEREST')}
               </h1>
-              <p className="text-xs text-gray-500 font-medium uppercase">School ERP</p>
+              <p className="text-xs text-gray-500 font-medium uppercase">
+                {schoolData ? 'School ERP' : (user.role === 'Super Admin' ? 'Management System' : 'School ERP')}
+              </p>
             </div>
           </div>
 
@@ -291,7 +308,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                   setExpandedMenus(prev => 
                                     prev.includes(subMenuKey) 
                                       ? prev.filter(m => m !== subMenuKey)
-                                      : [subMenuKey]
+                                      : [...prev, subMenuKey]
                                   );
                                 }}
                                 className="w-full flex items-center justify-between px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"

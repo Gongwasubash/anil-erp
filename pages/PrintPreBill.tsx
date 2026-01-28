@@ -152,7 +152,14 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchFeeMonths = async () => {
     try {
-      const { data, error } = await supabaseService.supabase.from('fee_months').select('*');
+      let query = supabaseService.supabase.from('fee_months').select('*');
+      
+      // Only filter by school_id if user has one
+      if (user.school_id) {
+        query = query.eq('school_id', user.school_id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       setFeeMonths(data || []);
     } catch (e) {
@@ -162,9 +169,14 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSchools = async () => {
     try {
+      if (user.role === 'Super Admin') {
+        setSchools([]);
+        return;
+      }
       const { data, error } = await supabaseService.supabase.from('schools').select('*');
       if (error) throw error;
-      setSchools(data || []);
+      const userSchools = user.school_id ? data?.filter(s => s.id === user.school_id) || [] : [];
+      setSchools(userSchools);
     } catch (e) {
       console.error('Error fetching schools:', e);
     }
@@ -188,6 +200,10 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchBatches = async () => {
     try {
+      if (user.role === 'Super Admin') {
+        setBatches([]);
+        return;
+      }
       const { data, error } = await supabaseService.supabase.from('batches').select('*');
       if (error) throw error;
       setBatches(data || []);
@@ -198,6 +214,10 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchClasses = async () => {
     try {
+      if (user.role === 'Super Admin') {
+        setClasses([]);
+        return;
+      }
       const { data, error } = await supabaseService.supabase.from('classes').select('*');
       if (error) throw error;
       setClasses(data || []);
@@ -208,6 +228,10 @@ const PrintPreBill: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchSections = async () => {
     try {
+      if (user.role === 'Super Admin') {
+        setSections([]);
+        return;
+      }
       const { data, error } = await supabaseService.supabase.from('sections').select('*');
       if (error) throw error;
       setSections(data || []);
