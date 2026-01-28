@@ -25,6 +25,10 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
         return;
       }
 
+      // Debug: Log the Supabase connection
+      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('Attempting login with:', { username: trimmedUser, password: trimmedPass });
+
       // Check schools table for school-specific authentication
       const { data: schools, error } = await supabaseService.supabase
         .from('schools')
@@ -33,8 +37,10 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
         .eq('password', trimmedPass)
         .single();
 
+      console.log('Supabase response:', { data: schools, error });
+
       if (error || !schools) {
-        setError('Invalid username or password. Please check your credentials.');
+        setError(`Invalid username or password. Error: ${error?.message || 'No matching school found'}`);
       } else {
         // Login successful with school credentials
         onLogin({ 
@@ -47,7 +53,7 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError('Login failed. Please try again.');
+      setError(`Login failed: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
