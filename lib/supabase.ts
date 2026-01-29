@@ -185,8 +185,9 @@ export const supabaseService = {
   
   // Departments
   getDepartments: async (schoolId?: string) => {
+    if (!schoolId) return { data: [], error: null };
     await setSchoolContext(schoolId);
-    return supabase.from('departments').select('*').order('order_no', { ascending: true });
+    return supabase.from('departments').select('*').eq('school_id', schoolId).order('order_no', { ascending: true });
   },
   createDepartment: async (data: any) => {
     await setSchoolContext(data.school_id);
@@ -203,8 +204,9 @@ export const supabaseService = {
   
   // Designations
   getDesignations: async (schoolId?: string) => {
+    if (!schoolId) return { data: [], error: null };
     await setSchoolContext(schoolId);
-    return supabase.from('designations').select('*, departments(department_name)').order('created_at', { ascending: false });
+    return supabase.from('designations').select('*, departments(department_name)').eq('school_id', schoolId).order('created_at', { ascending: false });
   },
   createDesignation: async (data: any) => {
     await setSchoolContext(data.school_id);
@@ -221,8 +223,9 @@ export const supabaseService = {
   
   // Employees
   getEmployees: async (schoolId?: string) => {
+    if (!schoolId) return { data: [], error: null };
     await setSchoolContext(schoolId);
-    return supabase.from('employees').select('*, departments(department_name), designations(designation_name)').order('created_at', { ascending: false });
+    return supabase.from('employees').select('*, departments(department_name), designations(designation_name), employee_types(employee_type_name)').eq('school_id', schoolId).order('created_at', { ascending: false });
   },
   createEmployee: async (data: any) => {
     await setSchoolContext(data.school_id);

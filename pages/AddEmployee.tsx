@@ -3,9 +3,11 @@ import { User } from '../types';
 import { supabaseService } from '../lib/supabase';
 
 const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
+    employeeType: '',
     department: '',
     designation: '',
     mobileNo: '',
@@ -32,11 +34,21 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
 
   const [departments, setDepartments] = useState<any[]>([]);
   const [designations, setDesignations] = useState<any[]>([]);
+  const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
   const [filteredDesignations, setFilteredDesignations] = useState<any[]>([]);
 
   useEffect(() => {
     loadDepartments();
     loadDesignations();
+    loadEmployeeTypes();
+    
+    // Check if editing
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+    const id = urlParams.get('id');
+    if (id) {
+      setEditingId(id);
+      loadEmployee(id);
+    }
   }, []);
 
   useEffect(() => {
@@ -55,13 +67,14 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
 
   const loadDepartments = async () => {
     try {
-      const { data, error } = await supabaseService.getDepartments();
+      const { data, error } = await supabaseService.getDepartments(user.school_id);
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
       console.log('Raw departments data:', data);
-      setDepartments(data || []);
+      const filtered = data?.filter(dept => String(dept.school_id) === String(user.school_id)) || [];
+      setDepartments(filtered);
     } catch (error) {
       console.error('Error loading departments:', error);
     }
@@ -69,15 +82,74 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
 
   const loadDesignations = async () => {
     try {
-      const { data, error } = await supabaseService.getDesignations();
+      const { data, error } = await supabaseService.getDesignations(user.school_id);
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
       console.log('Raw designations data:', data);
-      setDesignations(data || []);
+      const filtered = data?.filter(desig => String(desig.school_id) === String(user.school_id)) || [];
+      setDesignations(filtered);
     } catch (error) {
       console.error('Error loading designations:', error);
+    }
+  };
+
+  const loadEmployeeTypes = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('employee_types')
+        .select('*')
+        .eq('school_id', user.school_id)
+        .order('order_no');
+      if (!error) {
+        const filtered = data?.filter(type => String(type.school_id) === String(user.school_id)) || [];
+        setEmployeeTypes(filtered);
+      }
+    } catch (error) {
+      console.error('Error loading employee types:', error);
+    }
+  };
+
+  const loadEmployee = async (id: string) => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('employees')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (!error && data) {
+        setForm({
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
+          employeeType: data.employee_type_id?.toString() || '',
+          department: data.department_id?.toString() || '',
+          designation: data.designation_id?.toString() || '',
+          mobileNo: data.mobile_no || '',
+          homePhone: data.home_phone || '',
+          officeEmail: data.office_email || '',
+          personalEmail: data.personal_email || '',
+          mailAddress: data.mail_address || '',
+          country: data.country || '',
+          state: data.state || '',
+          city: data.city || '',
+          localAddress: data.local_address || '',
+          localPinCode: data.local_pin_code || '',
+          permanentAddress: data.permanent_address || '',
+          permanentPinCode: data.permanent_pin_code || '',
+          isAuthoriseSignatory: data.is_authorise_signatory || false,
+          isWaiver: data.is_waiver || false,
+          dateOfJoining: data.date_of_joining || '',
+          dateOfBirth: data.date_of_birth || '',
+          dateOfAnniversary: data.date_of_anniversary || '',
+          bloodGroup: data.blood_group || '',
+          panNo: data.pan_no || '',
+          gender: data.gender || 'Male'
+        });
+      }
+    } catch (error) {
+      console.error('Error loading employee:', error);
     }
   };
 
@@ -92,6 +164,7 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
       const employeeData = {
         first_name: form.firstName,
         last_name: form.lastName,
+        employee_type_id: form.employeeType ? parseInt(form.employeeType) : null,
         department_id: parseInt(form.department),
         designation_id: parseInt(form.designation),
         mobile_no: form.mobileNo,
@@ -113,45 +186,25 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
         date_of_anniversary: form.dateOfAnniversary || null,
         blood_group: form.bloodGroup,
         pan_no: form.panNo,
-        gender: form.gender
+        gender: form.gender,
+        school_id: user.school_id
       };
 
-      const { data, error } = await supabaseService.createEmployee(employeeData);
+      let result;
+      if (editingId) {
+        result = await supabaseService.updateEmployee(editingId, employeeData);
+      } else {
+        result = await supabaseService.createEmployee(employeeData);
+      }
       
-      if (error) {
-        console.error('Error saving employee:', error);
-        alert('Error saving employee: ' + error.message);
+      if (result.error) {
+        console.error('Error saving employee:', result.error);
+        alert('Error saving employee: ' + result.error.message);
         return;
       }
 
-      alert('Employee saved successfully!');
-      // Reset form
-      setForm({
-        firstName: '',
-        lastName: '',
-        department: '',
-        designation: '',
-        mobileNo: '',
-        homePhone: '',
-        officeEmail: '',
-        personalEmail: '',
-        mailAddress: '',
-        country: '',
-        state: '',
-        city: '',
-        localAddress: '',
-        localPinCode: '',
-        permanentAddress: '',
-        permanentPinCode: '',
-        isAuthoriseSignatory: false,
-        isWaiver: false,
-        dateOfJoining: '',
-        dateOfBirth: '',
-        dateOfAnniversary: '',
-        bloodGroup: '',
-        panNo: '',
-        gender: 'Male'
-      });
+      alert(editingId ? 'Employee updated successfully!' : 'Employee saved successfully!');
+      window.location.hash = '#/hr/manage_employee';
     } catch (error) {
       console.error('Error saving employee:', error);
       alert('Error saving employee. Please try again.');
@@ -195,7 +248,21 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-2">Type of Employee</label>
+              <select 
+                value={form.employeeType}
+                onChange={(e) => setForm(prev => ({ ...prev, employeeType: e.target.value }))}
+                className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+              >
+                <option value="">----Select-----</option>
+                {employeeTypes.map(type => (
+                  <option key={type.id} value={type.id}>{type.employee_type_name}</option>
+                ))}
+              </select>
+            </div>
+            
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-2">Department*</label>
               <select 
@@ -558,7 +625,7 @@ const AddEmployee: React.FC<{ user: User }> = ({ user }) => {
               onClick={handleSubmit}
               className="bg-[#3498db] text-white px-8 py-3 rounded-sm text-sm font-bold uppercase hover:opacity-90 transition-all shadow-md"
             >
-              SUBMIT
+              {editingId ? 'UPDATE' : 'SUBMIT'}
             </button>
           </div>
         </div>

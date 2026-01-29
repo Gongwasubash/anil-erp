@@ -144,6 +144,15 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   });
   const [editingDesignation, setEditingDesignation] = useState<any>(null);
   const [showEditDesignation, setShowEditDesignation] = useState(false);
+  const [employeeTypes, setEmployeeTypes] = useState([]);
+  const [employeeTypeFormData, setEmployeeTypeFormData] = useState({
+    orderNo: 1,
+    employeeTypeName: '',
+    shortName: '',
+    description: ''
+  });
+  const [editingEmployeeType, setEditingEmployeeType] = useState<any>(null);
+  const [showEditEmployeeType, setShowEditEmployeeType] = useState(false);
 
   // Load sections from Supabase on component mount
   useEffect(() => {
@@ -159,6 +168,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     loadStudents();
     loadDepartments();
     loadDesignations();
+    loadEmployeeTypes();
     console.log('Loading master data...');
   }, []);
 
@@ -623,15 +633,25 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadDepartments = async () => {
+    if (!user.school_id) {
+      setDepartments([]);
+      return;
+    }
     const { data, error } = await supabaseService.getDepartments(user.school_id);
     if (error) {
       console.error('Error loading departments:', error);
+      setDepartments([]);
     } else {
-      setDepartments(data || []);
+      const filteredDepartments = data?.filter(dept => dept.school_id === user.school_id) || [];
+      setDepartments(filteredDepartments);
     }
   };
 
   const handleCreateDepartment = async () => {
+    if (!user.school_id) {
+      alert('Error: No school ID found. Please contact administrator.');
+      return;
+    }
     setLoading(true);
     const departmentData = {
       order_no: departmentFormData.orderNo,
@@ -693,9 +713,13 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleDeleteDepartment = async (department: any) => {
+    if (department.school_id !== user.school_id) {
+      alert('Error: You can only delete departments from your school.');
+      return;
+    }
     if (window.confirm(`Are you sure you want to delete "${department.department_name}"?`)) {
       setLoading(true);
-      const { error } = await supabaseService.deleteDepartment(department.id);
+      const { error } = await supabaseService.deleteDepartment(department.id, user.school_id);
       
       if (error) {
         console.error('Error deleting department:', error);
@@ -709,15 +733,25 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadDesignations = async () => {
+    if (!user.school_id) {
+      setDesignations([]);
+      return;
+    }
     const { data, error } = await supabaseService.getDesignations(user.school_id);
     if (error) {
       console.error('Error loading designations:', error);
+      setDesignations([]);
     } else {
-      setDesignations(data || []);
+      const filteredDesignations = data?.filter(designation => designation.school_id === user.school_id) || [];
+      setDesignations(filteredDesignations);
     }
   };
 
   const handleCreateDesignation = async () => {
+    if (!user.school_id) {
+      alert('Error: No school ID found. Please contact administrator.');
+      return;
+    }
     setLoading(true);
     const designationData = {
       department_id: designationFormData.departmentId,
@@ -776,9 +810,13 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleDeleteDesignation = async (designation: any) => {
+    if (designation.school_id !== user.school_id) {
+      alert('Error: You can only delete designations from your school.');
+      return;
+    }
     if (window.confirm(`Are you sure you want to delete "${designation.designation_name}"?`)) {
       setLoading(true);
-      const { error } = await supabaseService.deleteDesignation(designation.id);
+      const { error } = await supabaseService.deleteDesignation(designation.id, user.school_id);
       
       if (error) {
         console.error('Error deleting designation:', error);
@@ -786,6 +824,118 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
       } else {
         alert('Designation deleted successfully!');
         loadDesignations();
+      }
+      setLoading(false);
+    }
+  };
+
+  const loadEmployeeTypes = async () => {
+    if (!user.school_id) {
+      setEmployeeTypes([]);
+      return;
+    }
+    const { data, error } = await supabaseService.supabase
+      .from('employee_types')
+      .select('*')
+      .eq('school_id', user.school_id)
+      .order('order_no', { ascending: true });
+    if (error) {
+      console.error('Error loading employee types:', error);
+      setEmployeeTypes([]);
+    } else {
+      const filteredEmployeeTypes = data?.filter(type => type.school_id === user.school_id) || [];
+      setEmployeeTypes(filteredEmployeeTypes);
+    }
+  };
+
+  const handleCreateEmployeeType = async () => {
+    if (!user.school_id) {
+      alert('Error: No school ID found. Please contact administrator.');
+      return;
+    }
+    setLoading(true);
+    const employeeTypeData = {
+      order_no: employeeTypeFormData.orderNo,
+      employee_type_name: employeeTypeFormData.employeeTypeName,
+      short_name: employeeTypeFormData.shortName,
+      description: employeeTypeFormData.description,
+      school_id: user.school_id
+    };
+    
+    const { data, error } = await supabaseService.supabase
+      .from('employee_types')
+      .insert(employeeTypeData);
+    
+    if (error) {
+      console.error('Error creating employee type:', error);
+      alert(`Error creating employee type: ${error.message}`);
+    } else {
+      alert('Employee type created successfully!');
+      setEmployeeTypeFormData({ orderNo: 1, employeeTypeName: '', shortName: '', description: '' });
+      loadEmployeeTypes();
+    }
+    setLoading(false);
+  };
+
+  const handleEditEmployeeType = (employeeType: any) => {
+    setEditingEmployeeType(employeeType);
+    setEmployeeTypeFormData({
+      orderNo: employeeType.order_no,
+      employeeTypeName: employeeType.employee_type_name,
+      shortName: employeeType.short_name,
+      description: employeeType.description || ''
+    });
+    setShowEditEmployeeType(true);
+  };
+
+  const handleUpdateEmployeeType = async () => {
+    if (!editingEmployeeType) return;
+    
+    setLoading(true);
+    const employeeTypeData = {
+      order_no: employeeTypeFormData.orderNo,
+      employee_type_name: employeeTypeFormData.employeeTypeName,
+      short_name: employeeTypeFormData.shortName,
+      description: employeeTypeFormData.description,
+      school_id: user.school_id
+    };
+    
+    const { data, error } = await supabaseService.supabase
+      .from('employee_types')
+      .update(employeeTypeData)
+      .eq('id', editingEmployeeType.id);
+    
+    if (error) {
+      console.error('Error updating employee type:', error);
+      alert(`Error updating employee type: ${error.message}`);
+    } else {
+      alert('Employee type updated successfully!');
+      setShowEditEmployeeType(false);
+      setEditingEmployeeType(null);
+      setEmployeeTypeFormData({ orderNo: 1, employeeTypeName: '', shortName: '', description: '' });
+      loadEmployeeTypes();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteEmployeeType = async (employeeType: any) => {
+    if (employeeType.school_id !== user.school_id) {
+      alert('Error: You can only delete employee types from your school.');
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete "${employeeType.employee_type_name}"?`)) {
+      setLoading(true);
+      const { error } = await supabaseService.supabase
+        .from('employee_types')
+        .delete()
+        .eq('id', employeeType.id);
+      
+      if (error) {
+        console.error('Error deleting employee type:', error);
+        alert(`Error deleting employee type: ${error.message}`);
+      } else {
+        alert('Employee type deleted successfully!');
+        loadEmployeeTypes();
       }
       setLoading(false);
     }
@@ -1615,6 +1765,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     if (path.includes('manage_blood_group')) return 'manage_blood_group';
     if (path.includes('manage_department')) return 'manage_department';
     if (path.includes('manage_designation')) return 'manage_designation';
+    if (path.includes('manage_employee_type')) return 'manage_employee_type';
     if (path.includes('class_subjects_teacher')) return 'class_subjects_teacher';
     return 'manage_branch';
   });
@@ -1640,6 +1791,7 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
     else if (path.includes('manage_blood_group')) setActiveModule('manage_blood_group');
     else if (path.includes('manage_department')) setActiveModule('manage_department');
     else if (path.includes('manage_designation')) setActiveModule('manage_designation');
+    else if (path.includes('manage_employee_type')) setActiveModule('manage_employee_type');
     else if (path.includes('class_subjects_teacher')) setActiveModule('class_subjects_teacher');
   }, [location.pathname]);
 
@@ -3903,6 +4055,216 @@ const Masters: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
         );
+      case 'manage_employee_type':
+    if (showEditEmployeeType && editingEmployeeType) {
+      return (
+        <div className="w-full">
+          <div className="mb-6 relative pb-4">
+            <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+              Edit Employee Type
+            </h2>
+            <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+          </div>
+
+          <div className="bg-white border border-gray-300 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+              <div className="flex items-center border-r h-10 bg-white">
+                <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Order no*:</div>
+                <div className="flex-1 px-2">
+                  <input 
+                    type="number"
+                    value={employeeTypeFormData.orderNo}
+                    onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, orderNo: parseInt(e.target.value) || 1 }))}
+                    className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center h-10 bg-white">
+                <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Type Name*:</div>
+                <div className="flex-1 px-2">
+                  <input 
+                    type="text"
+                    value={employeeTypeFormData.employeeTypeName}
+                    onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, employeeTypeName: e.target.value }))}
+                    className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+              <div className="flex items-center border-r h-10 bg-white">
+                <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">ShortName*:</div>
+                <div className="flex-1 px-2">
+                  <input 
+                    type="text"
+                    value={employeeTypeFormData.shortName}
+                    onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, shortName: e.target.value }))}
+                    className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center h-10 bg-white">
+                <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Description:</div>
+                <div className="flex-1 px-2">
+                  <input 
+                    type="text"
+                    value={employeeTypeFormData.description}
+                    onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+              <button 
+                onClick={handleUpdateEmployeeType}
+                disabled={loading}
+                className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+              >
+                {loading ? 'UPDATING...' : 'UPDATE'}
+              </button>
+              <button 
+                onClick={() => {
+                  setShowEditEmployeeType(false);
+                  setEditingEmployeeType(null);
+                  setEmployeeTypeFormData({ orderNo: 1, employeeTypeName: '', shortName: '', description: '' });
+                }}
+                className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full">
+        <div className="mb-6 relative pb-4">
+          <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
+            Manage Employee Type
+          </h2>
+          <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
+        </div>
+
+        <div className="bg-white border border-gray-300 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+            <div className="flex items-center border-r h-10 bg-white">
+              <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Order no*:</div>
+              <div className="flex-1 px-2">
+                <input 
+                  type="number"
+                  value={employeeTypeFormData.orderNo}
+                  onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, orderNo: parseInt(e.target.value) || 1 }))}
+                  className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  placeholder="Enter order number"
+                />
+              </div>
+            </div>
+            <div className="flex items-center h-10 bg-white">
+              <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Type Name*:</div>
+              <div className="flex-1 px-2">
+                <input 
+                  type="text"
+                  value={employeeTypeFormData.employeeTypeName}
+                  onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, employeeTypeName: e.target.value }))}
+                  className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  placeholder="Enter employee type name"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 border-b">
+            <div className="flex items-center border-r h-10 bg-white">
+              <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">ShortName*:</div>
+              <div className="flex-1 px-2">
+                <input 
+                  type="text"
+                  value={employeeTypeFormData.shortName}
+                  onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, shortName: e.target.value }))}
+                  className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  placeholder="Enter short name"
+                />
+              </div>
+            </div>
+            <div className="flex items-center h-10 bg-white">
+              <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Description:</div>
+              <div className="flex-1 px-2">
+                <input 
+                  type="text"
+                  value={employeeTypeFormData.description}
+                  onChange={(e) => setEmployeeTypeFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+                  placeholder="Enter description"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
+            <button 
+              onClick={handleCreateEmployeeType}
+              disabled={loading}
+              className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+            >
+              {loading ? 'ADDING...' : 'ADD'}
+            </button>
+            <button 
+              onClick={() => setEmployeeTypeFormData({ orderNo: 1, employeeTypeName: '', shortName: '', description: '' })}
+              className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+            >
+              CANCEL
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-300 mb-6">
+          <div className="p-3 border-b border-gray-300 bg-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-700">Employee Type Records</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Order No</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Employee Type Name</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">ShortName</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Edit</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Remove</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employeeTypes.map((employeeType: any) => (
+                  <tr key={employeeType.id} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-center">{employeeType.order_no}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs">{employeeType.employee_type_name}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-center">{employeeType.short_name}</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                      <button 
+                        onClick={() => handleEditEmployeeType(employeeType)}
+                        className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" 
+                        title="Edit"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    </td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs text-center">
+                      <button 
+                        onClick={() => handleDeleteEmployeeType(employeeType)}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all" 
+                        title="Remove"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
     }
   };
 

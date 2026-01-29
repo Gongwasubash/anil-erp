@@ -7,29 +7,112 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
   const [form, setForm] = useState({
     photo: null,
     status: 'Active',
-    branch: 'Normal Max Test Admin',
+    school: '',
     employeeType: '',
     department: '',
     designation: '',
     name: ''
   });
   const [employees, setEmployees] = useState<any[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<any[]>([]);
+  const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [designations, setDesignations] = useState<any[]>([]);
+  const [filteredDesignations, setFilteredDesignations] = useState<any[]>([]);
+  const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadEmployees();
+    loadEmployeeTypes();
+    loadDepartments();
+    loadDesignations();
+    loadSchools();
   }, []);
+
+  useEffect(() => {
+    if (form.department) {
+      const filtered = designations.filter(d => String(d.department_id) === String(form.department));
+      setFilteredDesignations(filtered);
+    } else {
+      setFilteredDesignations([]);
+    }
+  }, [form.department, designations]);
+
+  const loadSchools = async () => {
+    try {
+      const { data, error } = await supabaseService.getSchools();
+      if (!error && user.school_id) {
+        const userSchool = data?.filter(s => s.id === user.school_id) || [];
+        setSchools(userSchool);
+        if (userSchool.length > 0) {
+          setForm(prev => ({ ...prev, school: user.school_id }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading schools:', error);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      console.log('Loading departments for school_id:', user.school_id);
+      const { data, error } = await supabaseService.getDepartments(user.school_id);
+      console.log('Departments from DB:', data);
+      if (!error) {
+        const filtered = data?.filter(dept => String(dept.school_id) === String(user.school_id)) || [];
+        console.log('Filtered departments:', filtered);
+        setDepartments(filtered);
+      }
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    }
+  };
+
+  const loadDesignations = async () => {
+    try {
+      console.log('Loading designations for school_id:', user.school_id);
+      const { data, error } = await supabaseService.getDesignations(user.school_id);
+      console.log('Designations from DB:', data);
+      if (!error) {
+        const filtered = data?.filter(desig => String(desig.school_id) === String(user.school_id)) || [];
+        console.log('Filtered designations:', filtered);
+        setDesignations(filtered);
+      }
+    } catch (error) {
+      console.error('Error loading designations:', error);
+    }
+  };
+
+  const loadEmployeeTypes = async () => {
+    try {
+      const { data, error } = await supabaseService.supabase
+        .from('employee_types')
+        .select('*')
+        .eq('school_id', user.school_id)
+        .order('order_no');
+      if (!error) {
+        const filtered = data?.filter(type => type.school_id === user.school_id) || [];
+        setEmployeeTypes(filtered);
+      }
+    } catch (error) {
+      console.error('Error loading employee types:', error);
+    }
+  };
 
   const loadEmployees = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabaseService.getEmployees();
+      const { data, error } = await supabaseService.getEmployees(user.school_id);
       if (error) {
         console.error('Error loading employees:', error);
         return;
       }
       console.log('Loaded employees:', data);
-      setEmployees(data || []);
+      const filtered = data?.filter(emp => String(emp.school_id) === String(user.school_id)) || [];
+      console.log('Filtered employees:', filtered);
+      setEmployees(filtered);
+      setFilteredEmployees([]);
     } catch (error) {
       console.error('Error loading employees:', error);
     } finally {
@@ -37,8 +120,75 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  const handleSubmit = () => {
-    console.log('Employee form submitted:', form);
+  const handleSearch = () => {
+    let filtered = [...employees];
+    
+    if (form.school) {
+      filtered = filtered.filter(emp => String(emp.school_id) === String(form.school));
+    }
+    if (form.employeeType) {
+      filtered = filtered.filter(emp => String(emp.employee_type_id) === String(form.employeeType));
+    }
+    if (form.department) {
+      filtered = filtered.filter(emp => String(emp.department_id) === String(form.department));
+    }
+    if (form.designation) {
+      filtered = filtered.filter(emp => String(emp.designation_id) === String(form.designation));
+    }
+    if (form.name) {
+      filtered = filtered.filter(emp => 
+        (emp.first_name?.toLowerCase().includes(form.name.toLowerCase()) || 
+         emp.last_name?.toLowerCase().includes(form.name.toLowerCase()))
+      );
+    }
+    
+    setFilteredEmployees(filtered);
+  };
+
+  const handleCancel = () => {
+    setForm({
+      photo: null,
+      status: 'Active',
+      school: user.school_id,
+      employeeType: '',
+      department: '',
+      designation: '',
+      name: ''
+    });
+    setFilteredEmployees([]);
+  };
+
+  const handleToggleStatus = async (employeeId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Active' ? 'De-active' : 'Active';
+    try {
+      const { error } = await supabaseService.updateEmployee(employeeId, { status: newStatus });
+      if (error) {
+        alert('Error updating status: ' + error.message);
+        return;
+      }
+      alert(`Employee status changed to ${newStatus}`);
+      loadEmployees();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Error updating status');
+    }
+  };
+
+  const handleDelete = async (employeeId: string, employeeName: string) => {
+    if (window.confirm(`Are you sure you want to delete ${employeeName}?`)) {
+      try {
+        const { error } = await supabaseService.deleteEmployee(employeeId, user.school_id);
+        if (error) {
+          alert('Error deleting employee: ' + error.message);
+          return;
+        }
+        alert('Employee deleted successfully!');
+        loadEmployees();
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+        alert('Error deleting employee');
+      }
+    }
   };
 
 
@@ -76,10 +226,17 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
           <div className="flex items-center h-10 bg-white">
-            <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Branch:</div>
+            <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">School:</div>
             <div className="flex-1 px-2">
-              <select className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors">
-                <option>Normal Max Test Admin</option>
+              <select 
+                value={form.school}
+                onChange={(e) => setForm({...form, school: e.target.value})}
+                className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+              >
+                <option value="">--- Select ---</option>
+                {schools.map((school) => (
+                  <option key={school.id} value={school.id}>{school.school_name}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -88,32 +245,45 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
           <div className="flex items-center border-r h-10 bg-white">
             <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Type:</div>
             <div className="flex-1 px-2">
-              <select className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors">
-                <option value="">Select</option>
-                <option>Teaching</option>
-                <option>Non-Teaching</option>
+              <select 
+                value={form.employeeType}
+                onChange={(e) => setForm({...form, employeeType: e.target.value})}
+                className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+              >
+                <option value="">--- Select ---</option>
+                {employeeTypes.map((type) => (
+                  <option key={type.id} value={type.id}>{type.employee_type_name}</option>
+                ))}
               </select>
             </div>
           </div>
           <div className="flex items-center border-r h-10 bg-white">
             <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Department:</div>
             <div className="flex-1 px-2">
-              <select className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors">
-                <option value="">Select</option>
-                <option>Academic</option>
-                <option>Finance</option>
-                <option>HR</option>
+              <select 
+                value={form.department}
+                onChange={(e) => setForm({...form, department: e.target.value, designation: ''})}
+                className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+              >
+                <option value="">--- Select ---</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>{dept.department_name}</option>
+                ))}
               </select>
             </div>
           </div>
           <div className="flex items-center h-10 bg-white">
             <div className="w-20 bg-gray-50 h-full flex items-center px-3 text-[10px] font-black uppercase text-gray-400 border-r">Designation:</div>
             <div className="flex-1 px-2">
-              <select className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors">
+              <select 
+                value={form.designation}
+                onChange={(e) => setForm({...form, designation: e.target.value})}
+                className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
+              >
                 <option value="">--- Select ---</option>
-                <option>Principal</option>
-                <option>Teacher</option>
-                <option>Accountant</option>
+                {filteredDesignations.map((desig) => (
+                  <option key={desig.id} value={desig.id}>{desig.designation_name}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -124,6 +294,8 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
             <div className="flex-1 px-2">
               <input 
                 type="text"
+                value={form.name}
+                onChange={(e) => setForm({...form, name: e.target.value})}
                 className="border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400 w-full bg-white transition-colors"
                 placeholder="Enter name"
               />
@@ -131,10 +303,16 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
           </div>
         </div>
         <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white">
-          <button className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md">
+          <button 
+            onClick={handleSearch}
+            className="bg-[#3498db] text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+          >
             SEARCH
           </button>
-          <button className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md">
+          <button 
+            onClick={handleCancel}
+            className="bg-gray-400 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase hover:opacity-90 transition-all min-w-[100px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 shadow-md"
+          >
             CANCEL
           </button>
         </div>
@@ -176,23 +354,31 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
                     Loading employees...
                   </td>
                 </tr>
-              ) : employees.length === 0 ? (
+              ) : (filteredEmployees.length > 0 ? filteredEmployees : []).length === 0 ? (
                 <tr>
                   <td colSpan={19} className="border border-gray-300 px-2 py-4 text-xs text-center">
-                    No employees found
+                    {filteredEmployees.length === 0 && employees.length > 0 ? 'Click SEARCH to filter employees' : 'No employees found'}
                   </td>
                 </tr>
               ) : (
-                employees.map((employee, index) => (
+                filteredEmployees.map((employee, index) => (
                   <tr key={employee.id} className="hover:bg-gray-50">
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">{index + 1}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">
-                      <button className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" title="Edit">
+                      <button 
+                        onClick={() => window.location.hash = `#/hr/add_employee?id=${employee.id}`}
+                        className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded transition-all" 
+                        title="Edit"
+                      >
                         <Edit size={14} />
                       </button>
                     </td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">
-                      <button className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-all" title="Add Marks">
+                      <button 
+                        onClick={() => window.location.hash = '#/exams/add_students_marks'}
+                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-all" 
+                        title="Add Marks"
+                      >
                         <UserPlus size={14} />
                       </button>
                     </td>
@@ -202,13 +388,24 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
                       </button>
                     </td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">
-                      <button className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all" title="Delete">
+                      <button 
+                        onClick={() => handleDelete(employee.id, `${employee.first_name} ${employee.last_name}`)}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-all" 
+                        title="Delete"
+                      >
                         <Trash2 size={14} />
                       </button>
                     </td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">
-                      <button className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors">
-                        Action
+                      <button 
+                        onClick={() => handleToggleStatus(employee.id, employee.status || 'Active')}
+                        className={`px-2 py-1 rounded text-xs hover:opacity-80 transition-colors ${
+                          employee.status === 'Active' 
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                        }`}
+                      >
+                        {employee.status || 'Active'}
                       </button>
                     </td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{employee.first_name}</td>
@@ -218,7 +415,7 @@ const ManageEmployee: React.FC<{ user: User }> = ({ user }) => {
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">********</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{employee.departments?.department_name || '-'}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{employee.designations?.designation_name || '-'}</td>
-                    <td className="border border-gray-300 px-2 py-2 text-xs">-</td>
+                    <td className="border border-gray-300 px-2 py-2 text-xs">{employee.employee_types?.employee_type_name || '-'}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">{employee.mobile_no}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs text-center">{employee.date_of_joining || '-'}</td>
                     <td className="border border-gray-300 px-2 py-2 text-xs">{employee.office_email}</td>

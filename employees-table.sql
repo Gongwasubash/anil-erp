@@ -3,8 +3,10 @@ CREATE TABLE IF NOT EXISTS employees (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
+    employee_type_id INTEGER REFERENCES employee_types(id),
     department_id INTEGER REFERENCES departments(id),
     designation_id INTEGER REFERENCES designations(id),
+    school_id UUID REFERENCES schools(id),
     mobile_no VARCHAR(20) NOT NULL,
     home_phone VARCHAR(20),
     office_email VARCHAR(255) NOT NULL,
@@ -30,8 +32,10 @@ CREATE TABLE IF NOT EXISTS employees (
 );
 
 -- Create indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_employees_employee_type_id ON employees(employee_type_id);
 CREATE INDEX IF NOT EXISTS idx_employees_department_id ON employees(department_id);
 CREATE INDEX IF NOT EXISTS idx_employees_designation_id ON employees(designation_id);
+CREATE INDEX IF NOT EXISTS idx_employees_school_id ON employees(school_id);
 CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(office_email);
 
 -- Insert 30 sample employees

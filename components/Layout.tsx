@@ -192,6 +192,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         { name: 'Manage Blood Group', path: '/masters/manage_blood_group', icon: Heart },
         { name: 'Manage Department', path: '/masters/manage_department', icon: Briefcase },
         { name: 'Manage Designation', path: '/masters/manage_designation', icon: Award },
+        { name: 'Manage Employee Type', path: '/masters/manage_employee_type', icon: Users },
         { name: 'Class/Subjects Teacher', path: '/masters/class_subjects_teacher', icon: UserCheck }
       ]
     },
@@ -275,7 +276,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                       `}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon size={20} />
+                        <Icon size={16} />
                         <span className="text-sm">{item.name}</span>
                       </div>
                       {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -291,7 +292,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
                       `}
                     >
-                      <Icon size={20} />
+                      <Icon size={16} />
                       <span>{item.name}</span>
                     </Link>
                   )}
@@ -314,7 +315,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                 className="w-full flex items-center justify-between px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"
                               >
                                 <div className="flex items-center gap-2">
-                                  {subItem.icon && <subItem.icon size={16} />}
+                                  {subItem.icon && <subItem.icon size={14} />}
                                   {subItem.name}
                                 </div>
                                 {expandedMenus.includes(subItem.name.toLowerCase().replace(/\s+/g, '')) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -336,7 +337,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
                                         `}
                                       >
-                                        {SubIcon && <SubIcon size={14} />}
+                                        {SubIcon && <SubIcon size={12} />}
                                         {subSubItem.name}
                                       </Link>
                                     );
@@ -355,7 +356,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
                               `}
                             >
-                              {subItem.icon && <subItem.icon size={14} />}
+                              {subItem.icon && <subItem.icon size={12} />}
                               {subItem.name}
                             </Link>
                           )}
