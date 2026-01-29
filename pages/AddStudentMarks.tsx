@@ -45,10 +45,15 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
       loadBatches();
       loadClasses();
       loadSections();
-      loadSubjects();
       loadExamTypes();
     }
   }, [form.schoolId]);
+
+  useEffect(() => {
+    if (form.schoolId && form.batchId && form.classId && form.sectionId) {
+      loadSubjects();
+    }
+  }, [form.schoolId, form.batchId, form.classId, form.sectionId]);
 
   useEffect(() => {
     if (form.examTypeId) {
@@ -123,6 +128,33 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
       setSubjects([]);
       return;
     }
+    
+    // If teacher, only load assigned subjects
+    if (user.role === 'Teacher' && user.employee_id && form.batchId && form.classId && form.sectionId) {
+      const { data: assignments } = await supabaseService.supabase
+        .from('subject_teacher_assignments')
+        .select('subject_id')
+        .eq('school_id', form.schoolId)
+        .eq('employee_id', user.employee_id)
+        .eq('batch_id', form.batchId)
+        .eq('class_id', form.classId)
+        .eq('section_id', form.sectionId);
+      
+      if (assignments && assignments.length > 0) {
+        const subjectIds = assignments.map(a => a.subject_id);
+        const { data: subjectsData } = await supabaseService.supabase
+          .from('subjects')
+          .select('*')
+          .in('id', subjectIds)
+          .order('subject_name');
+        setSubjects(subjectsData || []);
+      } else {
+        setSubjects([]);
+      }
+      return;
+    }
+    
+    // For admin, load all subjects
     const { data, error } = await supabaseService.supabase
       .from('subjects')
       .select('*')
