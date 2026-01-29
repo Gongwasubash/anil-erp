@@ -30,18 +30,14 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
       console.log('Attempting login with:', { username: trimmedUser, password: trimmedPass });
 
       // Check schools table for school-specific authentication
-      const { data: schools, error } = await supabaseService.supabase
+      const { data: schools, error: schoolError } = await supabaseService.supabase
         .from('schools')
         .select('*')
         .eq('username', trimmedUser)
         .eq('password', trimmedPass)
         .single();
 
-      console.log('Supabase response:', { data: schools, error });
-
-      if (error || !schools) {
-        setError(`Invalid username or password. Error: ${error?.message || 'No matching school found'}`);
-      } else {
+      if (!schoolError && schools) {
         // Login successful with school credentials
         onLogin({ 
           id: schools.id, 
@@ -50,7 +46,33 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
           status: 'Active',
           school_id: schools.id
         });
+        return;
       }
+
+      // Check employees table for teacher login
+      const { data: employee, error: empError } = await supabaseService.supabase
+        .from('employees')
+        .select('*')
+        .eq('username', trimmedUser)
+        .eq('password', trimmedPass)
+        .single();
+
+      console.log('Employee login attempt:', { data: employee, error: empError });
+
+      if (!empError && employee) {
+        // Login successful with employee credentials
+        onLogin({ 
+          id: employee.id.toString(), 
+          username: `${employee.first_name} ${employee.last_name}`, 
+          role: 'Teacher', 
+          status: employee.status || 'Active',
+          school_id: employee.school_id,
+          employee_id: employee.id
+        });
+        return;
+      }
+
+      setError('Invalid username or password');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(`Login failed: ${err.message}`);

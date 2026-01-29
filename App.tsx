@@ -8,6 +8,9 @@ import Fees from './pages/Fees';
 import ExamsSimple from './pages/ExamsSimple';
 import AddExamMarks from './pages/AddExamMarks';
 import AddStudentMarks from './pages/AddStudentMarks';
+import AddWorkingPresentDays from './pages/AddWorkingPresentDays';
+import AssignSubjectTeachers from './pages/AssignSubjectTeachers';
+import ChangePassword from './pages/ChangePassword';
 import ViewStudentsMarks from './pages/ViewStudentsMarks';
 import ViewStudentsMarksModule from './pages/ViewStudentsMarksModule';
 import PrintAdmitCard from './pages/PrintAdmitCard';
@@ -65,6 +68,9 @@ const App: React.FC = () => {
               <Route path="/exams/*" element={<ExamsSimple user={user} />} />
               <Route path="/exams/add_exam_marks" element={<AddExamMarks user={user} />} />
               <Route path="/exams/add_students_marks" element={<AddStudentMarks user={user} />} />
+              <Route path="/exams/add_working_present_days" element={<AddWorkingPresentDays user={user} />} />
+              <Route path="/exams/assign_subject_teachers" element={<AssignSubjectTeachers user={user} />} />
+              <Route path="/change-password" element={<ChangePassword user={user} />} />
               <Route path="/exams/view_students_marks" element={<ViewStudentsMarks user={user} />} />
               <Route path="/exams/print_admit_card" element={<PrintAdmitCard user={user} />} />
               <Route path="/add-student-marks" element={<AddStudentMarks user={user} />} />

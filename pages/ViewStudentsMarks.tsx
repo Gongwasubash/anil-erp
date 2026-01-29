@@ -25,6 +25,7 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
   const [examTypes, setExamTypes] = useState([]);
   const [examNames, setExamNames] = useState([]);
   const [studentMarks, setStudentMarks] = useState([]);
+  const [attendanceData, setAttendanceData] = useState<{[key: string]: any}>({});
   const [examMarks, setExamMarks] = useState<any>(null);
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -320,6 +321,25 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
           }
         }
 
+        // Load attendance data
+        const { data: attendanceRecords } = await supabaseService.supabase
+          .from('student_attendance')
+          .select('*')
+          .eq('school_id', form.schoolId)
+          .eq('batch_id', form.batchId)
+          .eq('class_id', form.classId)
+          .eq('section_id', form.sectionId)
+          .eq('exam_type_id', form.examTypeId)
+          .eq('exam_name_id', form.examNameId);
+        
+        const attendanceMap = {};
+        if (attendanceRecords) {
+          attendanceRecords.forEach(record => {
+            attendanceMap[record.student_id] = record;
+          });
+        }
+        setAttendanceData(attendanceMap);
+
         // Group marks by student
         const studentMarksMap = {};
         data.forEach(mark => {
@@ -594,6 +614,8 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>%</th>
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>Grade</th>
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>GPA</th>
+                    <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>Working Days</th>
+                    <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>Present Days</th>
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>Result</th>
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center" rowSpan={2}>Remarks</th>
                   </tr>
@@ -675,6 +697,8 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold">{overallPercent}%</td>
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold text-blue-600">{grade}</td>
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold text-purple-600">{gpa}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-sm text-center">{attendanceData[studentData.student_id]?.working_days || '-'}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-sm text-center">{attendanceData[studentData.student_id]?.present_days || '-'}</td>
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold">
                               <span className={parseFloat(overallPercent) >= 40 ? 'text-green-600' : 'text-red-600'}>
                                 {parseFloat(overallPercent) >= 40 ? 'Pass' : 'Fail'}
@@ -751,6 +775,8 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold">{grandPercent}%</td>
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold text-blue-600">{grandGradeData.grade}</td>
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold text-purple-600">{grandGradeData.gpa}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-sm text-center">{attendanceData[studentData.student_id]?.working_days || '-'}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-sm text-center">{attendanceData[studentData.student_id]?.present_days || '-'}</td>
                             <td className="border border-gray-300 px-3 py-2 text-sm text-center font-bold">
                               <span className={parseFloat(grandPercent) >= 40 ? 'text-green-600' : 'text-red-600'}>
                                 {parseFloat(grandPercent) >= 40 ? 'Pass' : 'Fail'}

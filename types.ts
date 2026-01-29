@@ -8,6 +8,7 @@ export interface User {
   status: 'Active' | 'Inactive';
   lastLogin?: string;
   school_id?: string;
+  employee_id?: number;
 }
 
 export interface Student {

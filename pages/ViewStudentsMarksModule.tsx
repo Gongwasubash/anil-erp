@@ -7,6 +7,7 @@ const ViewStudentsMarksModule: React.FC = () => {
   console.log('ViewStudentsMarksModule component loaded');
   const navigate = useNavigate();
   const [marksheetData, setMarksheetData] = useState<any>(null);
+  const [attendanceData, setAttendanceData] = useState<any>(null);
   const [schoolData, setSchoolData] = useState<any>(null);
   const [examTypeData, setExamTypeData] = useState<any>(null);
   const [examNameData, setExamNameData] = useState<any>(null);
@@ -20,6 +21,7 @@ const ViewStudentsMarksModule: React.FC = () => {
       loadSchoolData(parsedData.form.schoolId);
       loadExamData(parsedData.form.examTypeId, parsedData.form.examNameId);
       loadBatchData(parsedData.form.batchId);
+      loadAttendanceData(parsedData);
     } else {
       // Sample data
       const sampleData = {
@@ -77,6 +79,30 @@ const ViewStudentsMarksModule: React.FC = () => {
   const loadBatchData = async (batchId: string) => {
     const { data, error } = await supabaseService.supabase.from('batches').select('*').eq('id', batchId).single();
     if (!error && data) setBatchData(data);
+  };
+
+  const loadAttendanceData = async (parsedData: any) => {
+    const studentIds = parsedData.students ? parsedData.students.map((s: any) => s.student_id) : [parsedData.student?.student_id];
+    if (!studentIds[0]) return;
+    
+    const { data, error } = await supabaseService.supabase
+      .from('student_attendance')
+      .select('*')
+      .eq('school_id', parsedData.form.schoolId)
+      .eq('batch_id', parsedData.form.batchId)
+      .eq('class_id', parsedData.form.classId)
+      .eq('section_id', parsedData.form.sectionId)
+      .eq('exam_type_id', parsedData.form.examTypeId)
+      .eq('exam_name_id', parsedData.form.examNameId)
+      .in('student_id', studentIds);
+    
+    if (!error && data) {
+      const attendanceMap = {};
+      data.forEach(record => {
+        attendanceMap[record.student_id] = record;
+      });
+      setAttendanceData(attendanceMap);
+    }
   };
 
   const calculateGrade = (percentage: number, grades: any[]) => {
@@ -310,11 +336,11 @@ const ViewStudentsMarksModule: React.FC = () => {
               </tr>
               <tr>
                 <td style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold' }}>Working Days:</td>
-                <td style={{ ...styles.td, borderBottom: '1px dotted #000' }}>____</td>
+                <td style={{ ...styles.td, borderBottom: '1px dotted #000' }}>{attendanceData?.[currentStudent.student_id]?.working_days || '____'}</td>
               </tr>
               <tr>
                 <td style={{ ...styles.td, textAlign: 'left', fontWeight: 'bold' }}>Present Days:</td>
-                <td style={{ ...styles.td, borderBottom: '1px dotted #000' }}>____</td>
+                <td style={{ ...styles.td, borderBottom: '1px dotted #000' }}>{attendanceData?.[currentStudent.student_id]?.present_days || '____'}</td>
               </tr>
               <tr>
                 <td colSpan={2} style={{ ...styles.td, textAlign: 'center', fontWeight: 'bold', backgroundColor: '#f2f2f2' }}>CONDUCT</td>

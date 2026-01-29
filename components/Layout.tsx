@@ -142,7 +142,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       path: '/exams', 
       icon: GraduationCap, 
       roles: ['Super Admin', 'Admin', 'Teacher', 'Student'],
-      subItems: [
+      subItems: user.role === 'Teacher' ? [
+        { name: 'Add Students Marks', path: '/exams/add_students_marks', icon: Percent }
+      ] : [
         { name: 'Manage Grade', path: '/exams/manage_grade', icon: Tag },
         { name: 'Personal Description', path: '/exams/personal_description', icon: BookOpen },
         { name: 'Show in Result', path: '/exams/show_in_result', icon: Settings },
@@ -379,6 +381,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 <p className="text-xs text-gray-500 truncate">{user.role}</p>
               </div>
             </div>
+            <Link
+              to="/change-password"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all shadow-sm"
+            >
+              <Settings size={18} />
+              <span className="font-medium">Change Password</span>
+            </Link>
             <button
               onClick={onLogout}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all shadow-sm"
