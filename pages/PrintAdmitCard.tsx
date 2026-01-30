@@ -103,31 +103,48 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleSearch = async () => {
-    if (!form.schoolId || !form.batchId || !form.classId || !form.sectionId || !form.examTypeId || !form.examNameId) {
-      alert('Please fill all required fields');
+    if (!form.schoolId || !form.batchId || !form.classId || !form.examTypeId || !form.examNameId) {
+      alert('Please fill School, Batch, Class, Exam Type and Exam Name');
       return;
     }
 
     setLoading(true);
+    setStudents([]);
+    setSelectedStudents(new Set());
+    setSelectAll(false);
+    
     try {
-      const { data, error } = await supabaseService.supabase
-        .from('students')
-        .select(`
-          id, roll_no, first_name, last_name, batch_id,
-          classes(class_name),
-          sections(section_name),
-          batches(batch_no)
-        `)
-        .eq('school_id', form.schoolId)
-        .eq('batch_id', form.batchId)
-        .eq('class_id', form.classId)
-        .eq('section_id', form.sectionId)
-        .order('roll_no');
+      const batchData = batches.find((b: any) => b.id == form.batchId);
+      const classData = classes.find((c: any) => c.id == form.classId);
+      const sectionData = sections.find((s: any) => s.id == form.sectionId);
 
-      if (!error && data) {
-        setStudents(data);
+      let query = supabaseService.supabase
+        .from('students')
+        .select('id, roll_no, first_name, last_name, batch_no, class, section')
+        .eq('school_id', form.schoolId)
+        .eq('batch_no', batchData?.batch_no)
+        .eq('class', classData?.class_name);
+
+      if (form.sectionId && sectionData) {
+        query = query.eq('section', sectionData.section_name);
+      }
+      
+      const { data, error } = await query.order('roll_no');
+
+      if (error) {
+        console.error('Error:', error);
+        alert('Error fetching students: ' + error.message);
+      } else if (data && data.length > 0) {
+        const enrichedData = data.map(student => ({
+          ...student,
+          batches: { batch_no: student.batch_no },
+          classes: { class_name: student.class },
+          sections: { section_name: student.section }
+        }));
+        
+        setStudents(enrichedData);
       } else {
-        alert('Error fetching students: ' + error?.message);
+        alert('No students found for the selected criteria');
       }
     } catch (err) {
       console.error('Database error:', err);
@@ -258,7 +275,7 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Section*</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Section</label>
                   <select 
                     value={form.sectionId} 
                     onChange={(e) => setForm(p => ({ ...p, sectionId: e.target.value }))}
@@ -297,12 +314,12 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Symbol No.</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Symbol No. Label</label>
                   <input 
                     type="text"
                     value={form.symbolNo}
                     onChange={(e) => setForm(p => ({ ...p, symbolNo: e.target.value }))}
-                    placeholder="Enter symbol number"
+                    placeholder="e.g., 2080-001, ABC-001"
                     className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
                   />
                 </div>

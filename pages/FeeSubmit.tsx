@@ -533,9 +533,9 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
           <div class="totals">
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; font-size:11px;">
               <div><label>Due Amount:</label><br><input type="number" id="due-amount" value="0" style="width:80px; padding:2px;" readonly></div>
-              <div><label>Fine Amount:</label><br><input type="number" id="fine-amount" value="0" style="width:80px; padding:2px;"></div>
-              <div><label>Discount:</label><br><input type="number" id="discount" value="0" style="width:80px; padding:2px;"></div>
-              <div><label>Other Amount:</label><br><input type="number" id="other-amount" value="0" style="width:80px; padding:2px;"></div>
+              <div><label>Fine Amount:</label><br><input type="number" id="fine-amount" value="0" style="width:80px; padding:2px;" onchange="updateTotalWithDiscount()"></div>
+              <div><label>Discount:</label><br><input type="number" id="discount" value="0" style="width:80px; padding:2px;" onchange="updateTotalWithDiscount()"></div>
+              <div><label>Other Amount:</label><br><input type="number" id="other-amount" value="0" style="width:80px; padding:2px;" onchange="updateTotalWithDiscount()"></div>
               <div><label>Total Fees:</label><br><input type="number" id="total-fees" value="0" style="width:80px; padding:2px;" readonly></div>
               <div><label>Pay Amount:</label><br><input type="number" id="pay-amount" value="0" style="width:80px; padding:2px;"></div>
               <div><label>Remarks:</label><br><input type="text" style="width:120px; padding:2px;"></div>
@@ -543,11 +543,24 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
           </div>
           
           <div style="text-align: center; margin-top: 20px;">
-            <button class="submit-btn" onclick="submitPayment()">Submit and Print</button>
+            <button id="submit-btn" class="submit-btn" onclick="handleSubmit()">Submit</button>
+            <button id="print-btn" class="submit-btn" style="background:#27ae60" onclick="handlePrint()" disabled>Print</button>
             <button class="submit-btn" style="background:#6c757d" onclick="window.close()">Cancel</button>
           </div>
         </div>
         <script>
+          let savedPaymentData = null;
+          
+          function updateTotalWithDiscount() {
+            const dueAmount = parseFloat(document.getElementById('due-amount').value) || 0;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const otherAmount = parseFloat(document.getElementById('other-amount').value) || 0;
+            const fineAmount = parseFloat(document.getElementById('fine-amount').value) || 0;
+            const totalFees = dueAmount - discount + otherAmount + fineAmount;
+            document.getElementById('total-fees').value = totalFees;
+            document.getElementById('pay-amount').value = totalFees;
+          }
+          
           function calculateTotalFromMonths() {
             const selectedMonthIds = [];
             const monthCheckboxes = document.querySelectorAll('.month-checkbox');
@@ -583,9 +596,12 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
             document.getElementById('due-amount').value = totalDue;
             document.getElementById('total-fees').value = totalDue;
             document.getElementById('pay-amount').value = totalDue;
+            
+            // Apply fine, discount, other amounts
+            updateTotalWithDiscount();
           }
           
-          function submitPayment() {
+          function handleSubmit() {
             const selectedMonthIds = [];
             const monthCheckboxes = document.querySelectorAll('.month-checkbox');
             monthCheckboxes.forEach(checkbox => {
@@ -634,47 +650,66 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
               return;
             }
             
-            // Save payment and generate receipt
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
+            // Save payment
             savePaymentRecords(selectedFees).then(() => {
-              // Generate receipt
-              const totalAmount = selectedFees.reduce((sum, fee) => sum + fee.amount, 0);
-              const fineAmount = parseFloat(document.getElementById('fine-amount').value) || 0;
-              const discount = parseFloat(document.getElementById('discount').value) || 0;
-              const otherAmount = parseFloat(document.getElementById('other-amount').value) || 0;
+              savedPaymentData = selectedFees;
               
-              const receiptWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes,resizable=yes');
-              const schoolData = window.schoolDetails;
-              const schoolName = schoolData?.school_name || '${form.school}';
-              const schoolAddress = schoolData?.address || 'School Address';
-              const schoolEmail = schoolData?.email || '';
-              const schoolLogo = schoolData?.logo_url || '';
-              const schoolPAN = schoolData?.pan_no || '';
+              document.getElementById('print-btn').disabled = false;
+              submitBtn.textContent = 'Submitted ✓';
+              submitBtn.style.background = '#95a5a6';
               
-              // Group fees by fee head
-              const feeGroups = {};
-              selectedFees.forEach(fee => {
-                if (!feeGroups[fee.head]) {
-                  feeGroups[fee.head] = { months: [], totalAmount: 0 };
-                }
-                if (!feeGroups[fee.head].months.includes(fee.month)) {
-                  feeGroups[fee.head].months.push(fee.month);
-                }
-                feeGroups[fee.head].totalAmount += fee.amount;
-              });
-              
-              const receiptRows = Object.entries(feeGroups).map(([feeHead, data], index) => 
-                '<tr><td>' + (index + 1) + '.</td><td>' + data.months.join(', ') + '</td><td>' + feeHead + '</td><td class="moveright">Rs. ' + data.totalAmount + '</td></tr>'
-              ).join('');
-              
-              receiptWindow.document.write('<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;margin-top:8px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A6}.bill{page-break-after:always}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span>' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + otherAmount + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + fineAmount + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + (totalAmount + otherAmount + fineAmount - discount) + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div></body></html>');
-              receiptWindow.document.close();
-              
-              alert('Payment Submitted Successfully!');
-              window.close();
+              alert('Payment Submitted Successfully! You can now print the receipt.');
             }).catch(error => {
               console.error('Error saving payment:', error);
               alert('Error saving payment: ' + error.message);
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit';
             });
+          }
+          
+          function handlePrint() {
+            if (!savedPaymentData || savedPaymentData.length === 0) {
+              alert('No payment data to print');
+              return;
+            }
+            
+            const totalAmount = savedPaymentData.reduce((sum, fee) => sum + fee.amount, 0);
+            const fineAmount = parseFloat(document.getElementById('fine-amount').value) || 0;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const otherAmount = parseFloat(document.getElementById('other-amount').value) || 0;
+            
+            const receiptWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes,resizable=yes');
+            const schoolData = window.schoolDetails;
+            const schoolName = schoolData?.school_name || '${form.school}';
+            const schoolAddress = schoolData?.address || 'School Address';
+            const schoolEmail = schoolData?.email || '';
+            const schoolLogo = schoolData?.logo_url || '';
+            const schoolPAN = schoolData?.pan_no || '';
+            
+            // Group fees by fee head
+            const feeGroups = {};
+            savedPaymentData.forEach(fee => {
+              if (!feeGroups[fee.head]) {
+                feeGroups[fee.head] = { months: [], totalAmount: 0 };
+              }
+              if (!feeGroups[fee.head].months.includes(fee.month)) {
+                feeGroups[fee.head].months.push(fee.month);
+              }
+              feeGroups[fee.head].totalAmount += fee.amount;
+            });
+            
+            const receiptRows = Object.entries(feeGroups).map(([feeHead, data], index) => 
+              '<tr><td>' + (index + 1) + '.</td><td>' + data.months.join(', ') + '</td><td>' + feeHead + '</td><td class="moveright">Rs. ' + data.totalAmount + '</td></tr>'
+            ).join('');
+            
+            const receiptHTML = '<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff;display:grid;grid-template-columns:1fr 1fr;gap:5px}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A4 portrait}body{display:grid;grid-template-columns:1fr 1fr}.bill{page-break-inside:avoid}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span>' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + otherAmount + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + fineAmount + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + (totalAmount + otherAmount + fineAmount - discount) + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div>';
+            
+            receiptWindow.document.write(receiptHTML + receiptHTML + '</body></html>');
+            receiptWindow.document.close();
           }
           
           async function savePaymentRecords(selectedFees) {
@@ -1027,11 +1062,85 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
           </div>
           
           <div style="text-align: center; margin-top: 20px;">
-            <button class="submit-btn" onclick="openReceiptWindow()">Submit and Print</button>
+            <button id="submit-btn" class="submit-btn" onclick="handleSubmit()">Submit</button>
+            <button id="print-btn" class="submit-btn" style="background:#27ae60" onclick="handlePrint()" disabled>Print</button>
             <button class="submit-btn" style="background:#6c757d" onclick="window.close()">Cancel</button>
           </div>
         </div>
         <script>
+          let savedPaymentData = null;
+          
+          // Define loadFeesForSelectedMonths FIRST before it's used
+          function loadFeesForSelectedMonths() {
+            const selectedMonthIds = [];
+            const monthCheckboxes = document.querySelectorAll('.month-checkbox');
+            monthCheckboxes.forEach(checkbox => {
+              if (checkbox.checked) {
+                selectedMonthIds.push(checkbox.value);
+              }
+            });
+            
+            console.log('Selected month IDs:', selectedMonthIds);
+            
+            if (selectedMonthIds.length === 0) {
+              document.querySelector('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Please select months to view fees</td></tr>';
+              return;
+            }
+            
+            const studentFees = window.studentFeesData || [];
+            const feeHeads = window.feeHeadsData || [];
+            const feeMonths = window.feeMonthsData || [];
+            const submittedPayments = window.submittedPayments || {};
+            
+            console.log('Student Fees Data:', studentFees);
+            console.log('Fee Heads:', feeHeads);
+            console.log('Fee Months:', feeMonths);
+            console.log('Submitted Payments:', submittedPayments);
+            
+            const filteredFees = studentFees.filter(fee => selectedMonthIds.includes(fee.month_id.toString()));
+            
+            console.log('Filtered Fees:', filteredFees);
+            
+            if (filteredFees.length === 0) {
+              document.querySelector('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">No fees found for selected months. Please add fees in Variable Fees section first.</td></tr>';
+              return;
+            }
+            
+            let tableRows = '';
+            let totalDueAmount = 0;
+            let totalSubmittedAmount = 0;
+            let totalRemainingAmount = 0;
+            
+            filteredFees.forEach((fee, index) => {
+              const feeHead = feeHeads.find(fh => fh.id == fee.fee_head_id);
+              const month = feeMonths.find(m => m.id == fee.month_id);
+              const feeAmount = parseFloat(fee.amount);
+              
+              const paymentKey = (month?.month_name || '') + '_' + (feeHead?.fee_head || '');
+              const submittedAmount = submittedPayments[paymentKey] || 0;
+              const calculatedRemaining = Math.max(0, feeAmount - submittedAmount);
+              const currentFeesValue = calculatedRemaining;
+              const initialAmountRemaining = 0;
+              
+              totalDueAmount += feeAmount;
+              totalSubmittedAmount += submittedAmount;
+              totalRemainingAmount += initialAmountRemaining;
+              
+              tableRows += '<tr><td>' + (index + 1) + '</td><td><input type="checkbox" onchange="updateTotalsFromSelection()"></td><td>' + (month?.month_name || 'Unknown') + '</td><td>' + (feeHead?.fee_head || 'Unknown') + '</td><td>' + feeAmount + '</td><td>' + submittedAmount + '</td><td><input type="number" value="' + currentFeesValue + '" max="' + calculatedRemaining + '" style="width:60px" onchange="calculateRemaining(this, ' + (index + 1) + '); updateTotalsFromSelection();"></td><td id="remaining-' + (index + 1) + '">' + initialAmountRemaining + '</td></tr>';
+            });
+            
+            tableRows += '<tr style="font-weight:bold"><td colspan="4">Total Fees :</td><td>' + totalDueAmount + '</td><td>' + totalSubmittedAmount + '</td><td id="total-current">' + (totalDueAmount - totalSubmittedAmount) + '</td><td id="total-remaining">' + totalRemainingAmount + '</td></tr>';
+            
+            document.querySelector('tbody').innerHTML = tableRows;
+            
+            document.getElementById('due-amount').value = totalDueAmount;
+            document.getElementById('total-fees').value = totalDueAmount - totalSubmittedAmount;
+            document.getElementById('net-payable').value = totalDueAmount - totalSubmittedAmount;
+            document.getElementById('pay-amount').value = 0;
+            document.getElementById('balance-amount').value = totalDueAmount - totalSubmittedAmount;
+            document.getElementById('remaining-amount').value = totalDueAmount - totalSubmittedAmount;
+          }
+          
           // Auto-load fees when popup opens
           window.addEventListener('load', function() {
             // Show empty table initially
@@ -1075,8 +1184,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
           
           const feeAmounts = [5000, 1000, 180, 5000, 180, 1000];
           
-          function openReceiptWindow() {
-            // Get selected fees and filter out fully paid ones
+          function handleSubmit() {
             const selectedFees = [];
             const feeRows = document.querySelectorAll('tbody tr:not(:last-child)');
             
@@ -1088,9 +1196,7 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 const amount = parseFloat(row.querySelector('input[type="number"]').value) || 0;
                 const remainingAmount = parseFloat(row.cells[7].textContent) || 0;
                 
-                // Only include fees with remaining amount > 0
                 if (remainingAmount > 0 || amount > 0) {
-                  // Find month and fee head IDs from window data
                   const feeMonths = window.feeMonthsData || [];
                   const feeHeads = window.feeHeadsData || [];
                   const monthObj = feeMonths.find(m => m.month_name === month);
@@ -1113,11 +1219,42 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
               return;
             }
             
-            // Save payment records to Supabase and update table
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
             savePaymentRecords(selectedFees).then(() => {
-              // Update the table display after successful payment
               updateTableAfterPayment(selectedFees);
-              // Group fees by fee head
+              savedPaymentData = selectedFees;
+              
+              document.getElementById('print-btn').disabled = false;
+              submitBtn.textContent = 'Submitted ✓';
+              submitBtn.style.background = '#95a5a6';
+              
+              alert('Payment Submitted Successfully! You can now print the receipt.');
+            }).catch(error => {
+              console.error('Error saving payment:', error);
+              alert('Error saving payment: ' + error.message);
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit';
+            });
+          }
+          
+          function handlePrint() {
+            if (!savedPaymentData || savedPaymentData.length === 0) {
+              alert('No payment data to print');
+              return;
+            }
+            openReceiptWindow(savedPaymentData);
+          }
+          
+          function openReceiptWindow(selectedFees) {
+            if (!selectedFees || selectedFees.length === 0) {
+              alert('No fees selected');
+              return;
+            }
+            
+            // Group fees by fee head
               const feeGroups = {};
               selectedFees.forEach(fee => {
                 if (!feeGroups[fee.head]) {
@@ -1146,17 +1283,12 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
                 '<tr><td>' + (index + 1) + '.</td><td>' + data.months.join(', ') + '</td><td>' + feeHead + '</td><td class="moveright">Rs. ' + data.totalAmount + '</td></tr>'
               ).join('');
               
-              receiptWindow.document.write('<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;margin-top:8px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A6}.bill{page-break-after:always}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span id="receipt-display">' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('other-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('fine-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + (totalAmount + (parseFloat(document.getElementById('other-amount').value) || 0) + (parseFloat(document.getElementById('fine-amount').value) || 0) - (parseFloat(document.getElementById('discount').value) || 0)) + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Remaining Amount:</td><td class="moveright">Rs. ' + totalRemainingAmount + '</td></tr><tr><td colspan="2" style="font-size:10px;font-weight:bold;padding:10px;">Amount In Words:</td><td colspan="2">' + amountInWords + ' Only/-</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div></body></html>');
+              const receiptHTML = '<!DOCTYPE html><html><head><title>Fee Receipt</title><style>body{font-family:arial,helvetica,serif;margin:0;padding:0;background-color:#fff;display:grid;grid-template-columns:1fr 1fr;gap:5px}.bill{height:132mm;width:90mm;border:1px solid #000;margin:2px;padding:5px;position:relative}.row:after{content:"";display:table;clear:both}.col-md-2,.col-md-10,.col-md-8,.col-md-10{float:left}.img1{width:auto;height:50px;margin:2px;margin-top:2px;margin-right:6px}.header{margin-top:3px}.col-md-10{width:80%}.name{font-size:16px;font-weight:bold;text-align:left;overflow:hidden}.address{font-size:12px;font-weight:bold}.email{font-size:10px;font-weight:normal;color:#666}.col-md-12{width:100%}.col-md-8{width:65%}.lineheight{line-height:18px}.nametop{margin-top:3px;margin-bottom:2px;line-height:18px;float:left}.bornone{border:none;padding:0;margin-left:4px}.tdspace{font-size:12px;font-weight:bold;padding-right:5px}.padspace{margin-right:4px}.roll,.ten{font-size:12px;font-weight:bold}.content{position:relative;min-height:280px}table,td,th,tr{border:1px solid #000000;border-collapse:collapse}.tab{width:100%}table{margin:auto}.table1{margin-bottom:32px}th{padding:1px;font-size:10px;background-color:#808080;color:#000000}td{padding:2px 4px 2px 4px;font-size:10px;height:12%}.moveright{text-align:right;font-size:10px;font-weight:bold}.cheque,.author{font-size:10px}.cite{font-size:10px;background-color:#808080;color:#000000;padding:5px;font-weight:bold;bottom:0px;width:332px;margin-bottom:2px}@media print{@page{size:A4 portrait}body{display:grid;grid-template-columns:1fr 1fr}.bill{page-break-inside:avoid}}</style></head><body onload="window.print()"><div class="bill"><div class="header"><div class="row"><div class="col-md-2"><div class="logo">' + (schoolLogo ? '<img src="' + schoolLogo + '" class="img1">' : '') + '</div></div><div class="col-md-12 lineheight"><div class="name">' + schoolName + '</div><div class="address">' + schoolAddress + '</div>' + (schoolEmail ? '<div class="email">' + schoolEmail + '</div>' : '') + '</div><div class="row nametop"><div class="col-md-12"><table class="bornone"><tbody><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">PAN:</span><span>' + schoolPAN + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Date:</span><span>' + new Date().toLocaleDateString() + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" colspan="2" style="width:200px;"><span class="padspace">Name:</span><span>' + '${student.first_name} ${student.last_name}' + '</span></td><td class="bornone tdspace" colspan="1"><span class="padspace">Class:</span><span>' + '${form.class}' + '</span></td></tr><tr class="bornone"><td class="bornone tdspace" style="width:100px;"><span class="padspace">Receipt:</span><span id="receipt-display">' + document.getElementById('m-receipt-no').value + '</span></td><td class="bornone tdspace" style="width:100px;text-align:center;"><span class="padspace">Roll No:</span><span>' + '${student.roll_no}' + '</span></td><td class="bornone tdspace"><span class="padspace">Sec.:</span><span>' + '${form.section}' + '</span></td></tr></tbody></table></div></div></div></div><div class="content"><div class="table1"><table class="tab"><thead><tr><th>S/No</th><th>MONTH</th><th>PARTICULARS</th><th>AMOUNT</th></tr></thead><tbody>' + receiptRows + '<tr><td colspan="3" class="moveright">Total Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Other Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('other-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Fine Amount:</td><td class="moveright">Rs. ' + (parseFloat(document.getElementById('fine-amount').value) || 0) + '</td></tr><tr><td colspan="3" class="moveright">Net Payable Amount:</td><td class="moveright">Rs. ' + (totalAmount + (parseFloat(document.getElementById('other-amount').value) || 0) + (parseFloat(document.getElementById('fine-amount').value) || 0) - (parseFloat(document.getElementById('discount').value) || 0)) + '</td></tr><tr><td colspan="3" class="moveright">Paid Amount:</td><td class="moveright">Rs. ' + totalAmount + '</td></tr><tr><td colspan="3" class="moveright">Remaining Amount:</td><td class="moveright">Rs. ' + totalRemainingAmount + '</td></tr><tr><td colspan="2" style="font-size:10px;font-weight:bold;padding:10px;">Amount In Words:</td><td colspan="2">' + amountInWords + ' Only/-</td></tr></tbody></table></div></div><div id="fixedbottom"><div class="cash"><div class="row"><div class="cheque col-md-8">Cash/Cheque/DD Collected by admin</div><div class="author col-md-4">Authorized Signatory</div></div></div><div class="cite"><cite>Note: </cite></div></div></div>';
+              
+              receiptWindow.document.write(receiptHTML + receiptHTML + '</body></html>');
               if (receiptWindow && receiptWindow.document) {
                 receiptWindow.document.close();
               }
-              
-              alert('Payment Submitted Successfully!');
-              window.close();
-            }).catch(error => {
-              console.error('Error saving payment:', error);
-              alert('Error saving payment: ' + error.message);
-            });
           }
           
           async function savePaymentRecords(selectedFees) {
@@ -1295,78 +1427,6 @@ const FeeSubmit: React.FC<{ user: User }> = ({ user }) => {
             
             if (totalCurrentCell) totalCurrentCell.textContent = totalCurrent;
             if (totalRemainingCell) totalRemainingCell.textContent = totalRemaining;
-          }
-          
-          function loadFeesForSelectedMonths() {
-            const selectedMonthIds = [];
-            const monthCheckboxes = document.querySelectorAll('.month-checkbox');
-            monthCheckboxes.forEach(checkbox => {
-              if (checkbox.checked) {
-                selectedMonthIds.push(checkbox.value);
-              }
-            });
-            
-            if (selectedMonthIds.length === 0) {
-              // If no months selected, show message
-              document.querySelector('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Please select months to view fees</td></tr>';
-              return;
-            }
-            
-            const studentId = window.selectedStudentId;
-            const studentFees = window.studentFeesData || [];
-            const feeHeads = window.feeHeadsData || [];
-            const feeMonths = window.feeMonthsData || [];
-            
-            // Filter fees by selected months
-            const filteredFees = studentFees.filter(fee => selectedMonthIds.includes(fee.month_id.toString()));
-            
-            let tableRows = '';
-            let totalDueAmount = 0;
-            let totalSubmittedAmount = 0;
-            let totalRemainingAmount = 0;
-            
-            if (filteredFees.length === 0) {
-              document.querySelector('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">No fees found for selected months</td></tr>';
-              return;
-            }
-            
-            // Get submitted payments from parent window
-            const submittedPayments = window.submittedPayments || {};
-            
-            filteredFees.forEach((fee, index) => {
-              const feeHead = feeHeads.find(fh => fh.id == fee.fee_head_id);
-              const month = feeMonths.find(m => m.id == fee.month_id);
-              const feeAmount = parseFloat(fee.amount);
-              
-              // Check for submitted payments
-              const paymentKey = (month?.month_name || '') + '_' + (feeHead?.fee_head || '');
-              const submittedAmount = submittedPayments[paymentKey] || 0;
-              const calculatedRemaining = Math.max(0, feeAmount - submittedAmount);
-              
-              // Current Fees auto-loads with remaining amount (Fee Amount - Fee Submitted)
-              const currentFeesValue = calculatedRemaining;
-              
-              // Amount Remaining = Fee Amount - Fee Submitted - Current Fee (initially 0 since current fee equals remaining)
-              const initialAmountRemaining = 0;
-              
-              totalDueAmount += feeAmount;
-              totalSubmittedAmount += submittedAmount;
-              totalRemainingAmount += initialAmountRemaining;
-              
-              tableRows += '<tr><td>' + (index + 1) + '</td><td><input type="checkbox" onchange="updateTotalsFromSelection()"></td><td>' + (month?.month_name || 'Unknown') + '</td><td>' + (feeHead?.fee_head || 'Unknown') + '</td><td>' + feeAmount + '</td><td>' + submittedAmount + '</td><td><input type="number" value="' + currentFeesValue + '" max="' + calculatedRemaining + '" style="width:60px" onchange="calculateRemaining(this, ' + (index + 1) + '); updateTotalsFromSelection();"></td><td id="remaining-' + (index + 1) + '">' + initialAmountRemaining + '</td></tr>';
-            });
-            
-            tableRows += '<tr style="font-weight:bold"><td colspan="4">Total Fees :</td><td>' + totalDueAmount + '</td><td>' + totalSubmittedAmount + '</td><td id="total-current">' + totalRemainingAmount + '</td><td id="total-remaining">' + totalRemainingAmount + '</td></tr>';
-            
-            document.querySelector('tbody').innerHTML = tableRows;
-            
-            // Update totals section
-            document.getElementById('due-amount').value = totalDueAmount;
-            document.getElementById('total-fees').value = totalDueAmount;
-            document.getElementById('net-payable').value = totalDueAmount;
-            document.getElementById('pay-amount').value = 0;
-            document.getElementById('balance-amount').value = totalDueAmount;
-            document.getElementById('remaining-amount').value = totalDueAmount;
           }
           
           function toggleAllMonths(tickAllCheckbox) {

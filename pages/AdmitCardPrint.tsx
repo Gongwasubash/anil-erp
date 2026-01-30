@@ -47,7 +47,7 @@ const AdmitCardPrint: React.FC = () => {
   const styles = `
     @page {
       size: A4;
-      margin: 5mm;
+      margin: 5mm 2mm 2mm 2mm;
     }
 
     body {
@@ -58,14 +58,17 @@ const AdmitCardPrint: React.FC = () => {
     .admit-cards {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 5mm;
+      gap: 3mm;
       width: 100%;
+      justify-items: center;
+      margin: 0 auto;
+      max-width: 210mm;
     }
 
     .card {
       width: 86mm;
       height: 54mm;
-      border: 2px solid #1e90ff;
+      border: 1px solid #1e90ff;
       box-sizing: border-box;
       overflow: hidden;
       page-break-inside: avoid;
@@ -74,12 +77,12 @@ const AdmitCardPrint: React.FC = () => {
     .header {
       display: flex;
       align-items: center;
-      padding: 3mm;
+      padding: 0.5mm 3mm;
     }
 
     .logo {
-      width: 10mm;
-      height: 10mm;
+      width: 18mm;
+      height: 18mm;
     }
 
     .header-text {
@@ -102,7 +105,7 @@ const AdmitCardPrint: React.FC = () => {
       color: white;
       text-align: center;
       font-size: 9px;
-      padding: 1.5mm 0;
+      padding: 0.5mm 0;
       font-weight: bold;
     }
 
@@ -125,19 +128,20 @@ const AdmitCardPrint: React.FC = () => {
     }
 
     .content {
-      padding: 2.5mm;
+      padding: 1mm 2.5mm;
       font-size: 8.5px;
       flex: 1;
       position: relative;
     }
 
     .content p {
-      margin: 0.8mm 0;
+      margin: 0.5mm 0;
+      font-weight: bold;
     }
 
     .signature {
       position: absolute;
-      bottom: -8mm;
+      bottom: -10mm;
       right: -9mm;
       font-size: 6px;
       font-weight: bold;
@@ -196,7 +200,7 @@ const AdmitCardPrint: React.FC = () => {
                 <p><strong>Name:</strong> {student.first_name} {student.last_name}</p>
                 <p><strong>Class:</strong> {student.classes?.class_name} &nbsp; <strong>Section:</strong> {student.sections?.section_name}</p>
                 <p><strong>Roll No.:</strong> {student.roll_no}</p>
-                <p><strong>Symbol No.:</strong> {student.symbolNumber || 'Not Set'}</p>
+                <p><strong>{form.symbolNo || 'Symbol No'}:</strong> {student.symbolNumber && student.symbolNumber !== 'Not Set' ? student.symbolNumber : 'Not Set'}</p>
                 <p><strong>Start Date:</strong> {form.examStartDate || 'Not Set'}</p>
                 <p><strong>End Date:</strong> {form.examEndDate || 'Not Set'}</p>
                 
