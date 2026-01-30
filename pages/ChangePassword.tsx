@@ -12,6 +12,37 @@ const ChangePassword: React.FC<{ user: User }> = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [displayPassword, setDisplayPassword] = useState('');
+
+  React.useEffect(() => {
+    loadCurrentPassword();
+  }, []);
+
+  const loadCurrentPassword = async () => {
+    try {
+      if (user.role === 'Teacher' && user.employee_id) {
+        const { data: employee } = await supabaseService.supabase
+          .from('employees')
+          .select('password')
+          .eq('id', user.employee_id)
+          .single();
+        if (employee?.password) {
+          setDisplayPassword(employee.password);
+        }
+      } else if (user.role === 'Admin' && user.school_id) {
+        const { data: school } = await supabaseService.supabase
+          .from('schools')
+          .select('password')
+          .eq('id', user.school_id)
+          .single();
+        if (school?.password) {
+          setDisplayPassword(school.password);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading password:', err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +152,13 @@ const ChangePassword: React.FC<{ user: User }> = ({ user }) => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {displayPassword && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-bold text-gray-700 mb-1">Your Current Password:</p>
+                <p className="text-lg font-mono font-bold text-blue-700">{displayPassword}</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Current Password*</label>
               <div className="relative">

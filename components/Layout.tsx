@@ -25,7 +25,8 @@ import {
   Heart,
   Briefcase,
   Award,
-  UserPlus
+  UserPlus,
+  Key
 } from 'lucide-react';
 import { User } from '../types';
 import { COLORS } from '../constants';
@@ -477,13 +478,24 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 <p className="text-xs text-gray-500 truncate">{user.role}</p>
               </div>
             </div>
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all shadow-sm"
-            >
-              <LogOut size={18} />
-              <span className="font-medium">Sign Out</span>
-            </button>
+            <div className="space-y-2">
+              {user.role !== 'Super Admin' && user.role !== 'Admin' && (
+                <Link
+                  to="/change-password"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all shadow-sm"
+                >
+                  <Key size={18} />
+                  <span className="font-medium">Change Password</span>
+                </Link>
+              )}
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all shadow-sm"
+              >
+                <LogOut size={18} />
+                <span className="font-medium">Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
