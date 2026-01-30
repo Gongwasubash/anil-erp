@@ -39,9 +39,12 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['fees&billing', 'feemaster', 'masters']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [schoolData, setSchoolData] = useState<any>(null);
   const location = useLocation();
+
+  console.log('Layout user data:', user);
+  console.log('User assigned_modules:', user.assigned_modules);
 
   useEffect(() => {
     fetchSchoolData();
@@ -124,7 +127,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       name: 'Variable Fee Details', 
       path: '/variable-fees', 
       icon: Settings, 
-      roles: ['Super Admin', 'Admin', 'Accountant'],
+      roles: ['Super Admin', 'Admin', 'Accountant', 'Teacher'],
       subItems: [
         { name: 'Fee Head', path: '/variable-fees/fee_head', icon: Tag },
         { name: 'Manage Bill Header', path: '/variable-fees/manage_bill_header', icon: BookOpen },
@@ -142,9 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       path: '/exams', 
       icon: GraduationCap, 
       roles: ['Super Admin', 'Admin', 'Teacher', 'Student'],
-      subItems: user.role === 'Teacher' ? [
-        { name: 'Add Students Marks', path: '/exams/add_students_marks', icon: Percent }
-      ] : [
+      subItems: [
         { name: 'Manage Grade', path: '/exams/manage_grade', icon: Tag },
         { name: 'Personal Description', path: '/exams/personal_description', icon: BookOpen },
         { name: 'Show in Result', path: '/exams/show_in_result', icon: Settings },
@@ -204,13 +205,103 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       icon: UserPlus, 
       roles: ['Super Admin', 'Admin'],
       subItems: [
-        { name: 'Manage Employee', path: '/hr/manage_employee', icon: Users }
+        { name: 'Manage Employee', path: '/hr/manage_employee', icon: Users },
+        { name: 'Add Employee', path: '/hr/add_employee', icon: UserPlus }
       ]
     },
-    { name: 'Admin Control', path: '/admin', icon: Settings, roles: ['Super Admin'] },
+    { 
+      name: 'Admin Control', 
+      path: '/admin', 
+      icon: Settings, 
+      roles: ['Super Admin', 'Admin'],
+      subItems: [
+        { name: 'Assign Modules', path: '/admin/assign_modules', icon: Cog },
+        { name: 'Change Password', path: '/admin/change_password', icon: Settings }
+      ]
+    },
   ];
 
-  const filteredMenu = menuItems.filter(item => item.roles.includes(user.role));
+  // Auto-expand only the active main menu and nested dropdown on page load
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const menusToExpand: string[] = [];
+    
+    // Don't expand any menus for homepage or pages without submenus
+    if (currentPath === '/') {
+      setExpandedMenus([]);
+      return;
+    }
+    
+    // Find the active main menu
+    const activeMainMenu = menuItems.find(item => 
+      item.path !== '/' && (currentPath === item.path || currentPath.startsWith(item.path + '/'))
+    );
+    
+    if (activeMainMenu && activeMainMenu.subItems) {
+      const mainMenuKey = activeMainMenu.name.toLowerCase().replace(/\s+/g, '');
+      menusToExpand.push(mainMenuKey);
+      
+      // Check if current path matches a nested dropdown item
+      activeMainMenu.subItems.forEach((subItem: any) => {
+        if (subItem.subItems) {
+          const hasActiveChild = subItem.subItems.some((child: any) => currentPath === child.path);
+          if (hasActiveChild) {
+            const subMenuKey = subItem.name.toLowerCase().replace(/\s+/g, '');
+            menusToExpand.push(subMenuKey);
+          }
+        } else if (subItem.path && currentPath === subItem.path) {
+          // Direct child is active, no nested dropdown to expand
+        }
+      });
+    }
+    
+    setExpandedMenus(menusToExpand);
+  }, [location.pathname]);
+
+  // Map menu paths to module IDs
+  const pathToModuleMap: {[key: string]: string} = {
+    '/exams/manage_grade': 'manage_grade',
+    '/exams/exam_type': 'exam_type',
+    '/exams/exam_name': 'exam_name',
+    '/exams/add_exam_marks': 'add_exam_marks',
+    '/exams/print_admit_card': 'print_admit_card',
+    '/exams/add_students_marks': 'add_students_marks',
+    '/exams/view_students_marks': 'view_students_marks',
+    '/exams/assign_subject_teachers': 'assign_subject_teachers',
+    '/students': 'manage_student',
+    '/hr/manage_employee': 'manage_employee',
+    '/admin/assign_modules': 'assign_modules',
+    '/admin/change_password': 'change_password'
+  };
+
+  const filteredMenu = menuItems.filter(item => {
+    if (!item.roles.includes(user.role)) return false;
+    
+    // Super Admin and Admin see everything based on role
+    if (user.role === 'Super Admin' || user.role === 'Admin') return true;
+    
+    // For other roles, don't show Dashboard
+    if (item.name === 'Dashboard') return false;
+    
+    // For other roles, check assigned_modules
+    if (!user.assigned_modules || user.assigned_modules.length === 0) {
+      return false;
+    }
+    
+    // Filter sub-items based on assigned modules
+    if (item.subItems) {
+      item.subItems = item.subItems.filter((subItem: any) => {
+        const moduleId = pathToModuleMap[subItem.path];
+        return moduleId && user.assigned_modules?.includes(moduleId);
+      });
+      // Show parent menu only if it has visible sub-items
+      return item.subItems.length > 0;
+    }
+    
+    // For items without sub-items, check direct access
+    const moduleId = pathToModuleMap[item.path];
+    return moduleId && user.assigned_modules?.includes(moduleId);
+  });
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -266,7 +357,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                         const menuKey = item.name.toLowerCase().replace(/\s+/g, '');
                         setExpandedMenus(prev => 
                           prev.includes(menuKey) 
-                            ? prev.filter(m => m !== menuKey)
+                            ? []
                             : [menuKey]
                         );
                       }}
@@ -308,11 +399,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                               <button
                                 onClick={() => {
                                   const subMenuKey = subItem.name.toLowerCase().replace(/\s+/g, '');
-                                  setExpandedMenus(prev => 
-                                    prev.includes(subMenuKey) 
-                                      ? prev.filter(m => m !== subMenuKey)
-                                      : [...prev, subMenuKey]
-                                  );
+                                  const parentMenuKey = item.name.toLowerCase().replace(/\s+/g, '');
+                                  setExpandedMenus(prev => {
+                                    if (prev.includes(subMenuKey)) {
+                                      // Close child, keep parent
+                                      return [parentMenuKey];
+                                    } else {
+                                      // Open child, keep parent, close other children
+                                      return [parentMenuKey, subMenuKey];
+                                    }
+                                  });
                                 }}
                                 className="w-full flex items-center justify-between px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"
                               >
@@ -381,13 +477,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 <p className="text-xs text-gray-500 truncate">{user.role}</p>
               </div>
             </div>
-            <Link
-              to="/change-password"
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100 transition-all shadow-sm"
-            >
-              <Settings size={18} />
-              <span className="font-medium">Change Password</span>
-            </Link>
             <button
               onClick={onLogout}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all shadow-sm"

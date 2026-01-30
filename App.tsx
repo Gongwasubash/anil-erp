@@ -11,6 +11,7 @@ import AddStudentMarks from './pages/AddStudentMarks';
 import AddWorkingPresentDays from './pages/AddWorkingPresentDays';
 import AssignSubjectTeachers from './pages/AssignSubjectTeachers';
 import ChangePassword from './pages/ChangePassword';
+import AssignModules from './pages/AssignModules';
 import ViewStudentsMarks from './pages/ViewStudentsMarks';
 import ViewStudentsMarksModule from './pages/ViewStudentsMarksModule';
 import PrintAdmitCard from './pages/PrintAdmitCard';
@@ -23,6 +24,7 @@ import FeeSubmit from './pages/FeeSubmit';
 import DailyFeeReceiptRegister from './pages/DailyFeeReceiptRegister';
 import ManageEmployee from './pages/ManageEmployee';
 import AddEmployee from './pages/AddEmployee';
+import EmployeeDashboard from './pages/EmployeeDashboard';
 import Login from './pages/Login';
 import { User } from './types';
 
@@ -62,7 +64,11 @@ const App: React.FC = () => {
         <Route path="/*" element={
           <Layout user={user} onLogout={handleLogout}>
             <Routes>
-              <Route path="/" element={<Dashboard user={user} />} />
+              <Route path="/" element={
+                user.role === 'Super Admin' || user.role === 'Admin' ? 
+                  <Dashboard user={user} /> : 
+                  <EmployeeDashboard user={user} />
+              } />
               <Route path="/students/*" element={<Students user={user} />} />
               <Route path="/fees/*" element={<Fees user={user} />} />
               <Route path="/exams/*" element={<ExamsSimple user={user} />} />
@@ -81,6 +87,8 @@ const App: React.FC = () => {
               <Route path="/hr/manage_employee" element={<ManageEmployee user={user} />} />
               <Route path="/hr/add_employee" element={<AddEmployee user={user} />} />
               <Route path="/masters/*" element={<Masters user={user} />} />
+              <Route path="/admin/assign_modules" element={<AssignModules user={user} />} />
+              <Route path="/admin/change_password" element={<ChangePassword user={user} />} />
               <Route path="/admin/*" element={<Admin user={user} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

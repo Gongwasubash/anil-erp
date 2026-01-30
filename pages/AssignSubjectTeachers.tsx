@@ -124,16 +124,21 @@ const AssignSubjectTeachers: React.FC<{ user: User }> = ({ user }) => {
   const loadAssignments = async () => {
     if (!user.school_id) return;
     try {
-      const { data, error } = await supabaseService.supabase
+      let query = supabaseService.supabase
         .from('subject_teacher_assignments')
         .select('*')
-        .eq('school_id', user.school_id)
-        .order('created_at', { ascending: false });
+        .eq('school_id', user.school_id);
+      
+      // If teacher, only show their assignments
+      if (user.role === 'Teacher' && user.employee_id) {
+        query = query.eq('employee_id', user.employee_id);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) {
         console.error('Load assignments error:', error);
       } else {
-        // Manually load related data
         const assignmentsWithDetails = await Promise.all((data || []).map(async (assignment) => {
           const [classData, sectionData, subjectData, employeeData] = await Promise.all([
             supabaseService.supabase.from('classes').select('class_name').eq('id', assignment.class_id).single(),
@@ -172,18 +177,6 @@ const AssignSubjectTeachers: React.FC<{ user: User }> = ({ user }) => {
       subject_id: parseInt(form.subjectId),
       employee_id: parseInt(form.employeeId)
     };
-    
-    console.log('=== INSERT DEBUG ===');
-    console.log('Raw form:', JSON.stringify(form, null, 2));
-    console.log('Insert data:', JSON.stringify(insertData, null, 2));
-    console.log('Data types:', {
-      school_id: typeof insertData.school_id,
-      batch_id: typeof insertData.batch_id,
-      class_id: typeof insertData.class_id,
-      section_id: typeof insertData.section_id,
-      subject_id: typeof insertData.subject_id,
-      employee_id: typeof insertData.employee_id
-    });
 
     setLoading(true);
     try {
@@ -192,19 +185,29 @@ const AssignSubjectTeachers: React.FC<{ user: User }> = ({ user }) => {
         .insert(insertData)
         .select();
       
-      console.log('Insert response:', { data, error });
-      
       if (error) {
-        console.error('=== INSERT ERROR ===');
-        console.error('Error object:', JSON.stringify(error, null, 2));
         alert('Error assigning subject: ' + error.message);
       } else {
+        // Auto-add assign_subject_teachers module to employee
+        const { data: empData } = await supabaseService.supabase
+          .from('employees')
+          .select('assigned_modules')
+          .eq('id', form.employeeId)
+          .single();
+        
+        const currentModules = empData?.assigned_modules || [];
+        if (!currentModules.includes('assign_subject_teachers')) {
+          await supabaseService.supabase
+            .from('employees')
+            .update({ assigned_modules: [...currentModules, 'assign_subject_teachers'] })
+            .eq('id', form.employeeId);
+        }
+        
         alert('Subject assigned successfully!');
         setForm(prev => ({ ...prev, subjectId: '', employeeId: '' }));
         loadAssignments();
       }
     } catch (err) {
-      console.error('=== CATCH ERROR ===');
       console.error(err);
       alert('Database connection error');
     }
@@ -232,7 +235,9 @@ const AssignSubjectTeachers: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">Assign Subject</h1>
-          <p className="text-sm lg:text-base text-gray-500">Assign subjects to teachers</p>
+          <p className="text-sm lg:text-base text-gray-500">
+            {user.role === 'Teacher' ? 'View your assigned subjects' : 'Assign subjects to teachers'}
+          </p>
         </div>
       </div>
 
@@ -240,11 +245,12 @@ const AssignSubjectTeachers: React.FC<{ user: User }> = ({ user }) => {
         <div className="animate-in fade-in duration-300 p-4 lg:p-8">
           <div className="mb-6 relative pb-4">
             <h2 className="text-lg lg:text-2xl text-[#2980b9] font-normal uppercase tracking-tight">
-              ASSIGN SUBJECT
+              {user.role === 'Teacher' ? 'MY ASSIGNED SUBJECTS' : 'ASSIGN SUBJECT'}
             </h2>
             <div className="h-[2px] w-full bg-[#f3f3f3] absolute bottom-0 left-0"><div className="h-full w-16 lg:w-24 bg-[#2980b9]"></div></div>
           </div>
 
+          {user.role !== 'Teacher' && (
           <div className="border-2 border-gray-200 shadow-sm mb-6 bg-white overflow-hidden transition-all duration-300">
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -341,6 +347,7 @@ const AssignSubjectTeachers: React.FC<{ user: User }> = ({ user }) => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Assignments Table */}
           <div className="bg-white border border-gray-300 mt-6">

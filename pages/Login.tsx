@@ -67,7 +67,8 @@ const Login: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
           role: 'Teacher', 
           status: employee.status || 'Active',
           school_id: employee.school_id,
-          employee_id: employee.id
+          employee_id: employee.id,
+          assigned_modules: employee.assigned_modules || []
         });
         return;
       }

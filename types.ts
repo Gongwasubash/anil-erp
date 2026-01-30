@@ -9,6 +9,7 @@ export interface User {
   lastLogin?: string;
   school_id?: string;
   employee_id?: number;
+  assigned_modules?: string[];
 }
 
 export interface Student {
