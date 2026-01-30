@@ -850,6 +850,9 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
     
     // Map form fields to database column names
     const finalData = {
+      // School ID (critical for foreign key)
+      school_id: user.school_id || null,
+      
       // School Information
       school: formData.school || null,
       branch_name: formData.branchName || null,
