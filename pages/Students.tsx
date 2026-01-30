@@ -270,6 +270,7 @@ const Students: React.FC<StudentsProps> = ({ user }) => {
             
             // Map CSV columns to database fields
             const studentData = {
+              school_id: user.school_id || null,
               school: values[headers.indexOf('School')] || null,
               branch_name: values[headers.indexOf('Branch Name')] || null,
               batch_no: values[headers.indexOf('Batch No')] || null,
