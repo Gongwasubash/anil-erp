@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import Fees from './pages/Fees';
 import ExamsSimple from './pages/ExamsSimple';
+import TermExamName from './pages/TermExamName';
 import AddExamMarks from './pages/AddExamMarks';
 import AddStudentMarks from './pages/AddStudentMarks';
 import AddWorkingPresentDays from './pages/AddWorkingPresentDays';
@@ -14,6 +15,8 @@ import ChangePassword from './pages/ChangePassword';
 import AssignModules from './pages/AssignModules';
 import ViewStudentsMarks from './pages/ViewStudentsMarks';
 import ViewStudentsMarksModule from './pages/ViewStudentsMarksModule';
+import ViewStudentsTermMarks from './pages/ViewStudentsTermMarks';
+import AllTermStudentsMarksModule from './pages/AllTermStudentsMarksModule';
 import PrintAdmitCard from './pages/PrintAdmitCard';
 import AdmitCardPrint from './pages/AdmitCardPrint';
 import Masters from './pages/Masters';
@@ -60,6 +63,7 @@ const App: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/view-students-marks-module" element={<ViewStudentsMarksModule />} />
+        <Route path="/all-term-students-marks" element={<AllTermStudentsMarksModule />} />
         <Route path="/admit-card-print" element={<AdmitCardPrint />} />
         <Route path="/*" element={
           <Layout user={user} onLogout={handleLogout}>
@@ -72,12 +76,14 @@ const App: React.FC = () => {
               <Route path="/students/*" element={<Students user={user} />} />
               <Route path="/fees/*" element={<Fees user={user} />} />
               <Route path="/exams/*" element={<ExamsSimple user={user} />} />
+              <Route path="/exams/term_exam_name" element={<TermExamName user={user} />} />
               <Route path="/exams/add_exam_marks" element={<AddExamMarks user={user} />} />
               <Route path="/exams/add_students_marks" element={<AddStudentMarks user={user} />} />
               <Route path="/exams/add_working_present_days" element={<AddWorkingPresentDays user={user} />} />
               <Route path="/exams/assign_subject_teachers" element={<AssignSubjectTeachers user={user} />} />
               <Route path="/change-password" element={<ChangePassword user={user} />} />
               <Route path="/exams/view_students_marks" element={<ViewStudentsMarks user={user} />} />
+              <Route path="/exams/view_students_term_marks" element={<ViewStudentsTermMarks user={user} />} />
               <Route path="/exams/print_admit_card" element={<PrintAdmitCard user={user} />} />
               <Route path="/add-student-marks" element={<AddStudentMarks user={user} />} />
               <Route path="/variable-fees/add_student_variable_fee" element={<AddStudentVariableFee user={user} />} />

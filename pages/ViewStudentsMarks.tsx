@@ -47,13 +47,13 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
   }, [user.school_id, form.batchId, form.classId, form.sectionId]);
 
   useEffect(() => {
-    if (form.examTypeId) {
+    if (form.schoolId && form.batchId && form.classId && form.sectionId && form.examTypeId) {
       loadExamNames();
     } else {
       setExamNames([]);
       setForm(p => ({ ...p, examNameId: '' }));
     }
-  }, [user.school_id, form.examTypeId]);
+  }, [form.schoolId, form.batchId, form.classId, form.sectionId, form.examTypeId]);
 
   const loadSchools = async () => {
     const { data, error } = await supabaseService.getSchools();
@@ -147,11 +147,14 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadExamNames = async () => {
-    if (!user.school_id || !form.examTypeId) return;
+    if (!form.schoolId || !form.batchId || !form.classId || !form.sectionId || !form.examTypeId) return;
     const { data, error } = await supabaseService.supabase
       .from('exam_names')
       .select('*')
-      .eq('school_id', user.school_id)
+      .eq('school_id', form.schoolId)
+      .eq('batch_id', form.batchId)
+      .eq('class_id', form.classId)
+      .eq('section_id', form.sectionId)
       .eq('exam_type_id', form.examTypeId);
     if (!error) setExamNames(data || []);
   };
@@ -294,12 +297,24 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
         const studentIds = [...new Set(data.map(mark => mark.student_id))];
         const { data: studentsData } = await supabaseService.supabase
           .from('students')
-          .select(`
-            id, roll_no, first_name, last_name, class_id, section_id,
-            classes(class_name),
-            sections(section_name)
-          `)
+          .select('id, roll_no, first_name, last_name, batch_no, class, section, batch_id, class_id, section_id')
           .in('id', studentIds);
+        
+        // Get batch, class, and section names
+        const { data: batchesData } = await supabaseService.supabase
+          .from('batches')
+          .select('id, batch_no')
+          .eq('school_id', form.schoolId);
+        
+        const { data: classesData } = await supabaseService.supabase
+          .from('classes')
+          .select('id, class_name')
+          .eq('school_id', form.schoolId);
+        
+        const { data: sectionsData } = await supabaseService.supabase
+          .from('sections')
+          .select('id, section_name')
+          .eq('school_id', form.schoolId);
         
         // Get subjects data and exam marks for each subject
         const subjectIds = [...new Set(data.map(mark => mark.subject_id))];
@@ -345,12 +360,16 @@ const ViewStudentsMarks: React.FC<{ user: User }> = ({ user }) => {
         data.forEach(mark => {
           if (!studentMarksMap[mark.student_id]) {
             const student = studentsData?.find(s => s.id === mark.student_id);
+            const batchInfo = batchesData?.find(b => String(b.id) === String(student?.batch_id));
+            const classInfo = classesData?.find(c => String(c.id) === String(student?.class_id));
+            const sectionInfo = sectionsData?.find(s => String(s.id) === String(student?.section_id));
+            
             studentMarksMap[mark.student_id] = {
               student_id: mark.student_id,
               student_name: student ? `${student.first_name} ${student.last_name}` : '',
               roll_no: student?.roll_no || '',
-              class_name: student?.classes?.class_name || '',
-              section_name: student?.sections?.section_name || '',
+              class_name: student?.class || classInfo?.class_name || '',
+              section_name: student?.section || sectionInfo?.section_name || '',
               batch_id: mark.batch_id,
               class_id: mark.class_id,
               section_id: mark.section_id,

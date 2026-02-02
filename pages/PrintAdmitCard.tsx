@@ -26,6 +26,9 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [symbolNumbers, setSymbolNumbers] = useState<{[key: string]: string}>({});
+  const [examPercentages, setExamPercentages] = useState<any[]>([]);
+  const [studentMarks, setStudentMarks] = useState<{[key: string]: {[key: string]: {[key: string]: number}}}>({});
+  const [subjects, setSubjects] = useState<any[]>([]);
 
   useEffect(() => {
     loadSchools();
@@ -33,16 +36,38 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
     loadClasses();
     loadSections();
     loadExamTypes();
+    loadSubjects();
+    loadSavedData();
   }, [user.school_id]);
 
+  const loadSavedData = () => {
+    const savedData = sessionStorage.getItem('printMarksheetData');
+    if (savedData) {
+      const data = JSON.parse(savedData);
+      if (data.form) {
+        setForm({
+          schoolId: data.form.schoolId || user.school_id,
+          batchId: data.form.batchId || '',
+          classId: data.form.classId || '',
+          sectionId: data.form.sectionId || '',
+          examTypeId: data.form.examTypeId || '',
+          examNameId: data.form.examNameId || '',
+          symbolNo: '',
+          examStartDate: '',
+          examEndDate: ''
+        });
+      }
+    }
+  };
+
   useEffect(() => {
-    if (form.examTypeId) {
+    if (form.schoolId && form.batchId && form.classId && form.sectionId && form.examTypeId) {
       loadExamNames();
     } else {
       setExamNames([]);
       setForm(p => ({ ...p, examNameId: '' }));
     }
-  }, [user.school_id, form.examTypeId]);
+  }, [form.schoolId, form.batchId, form.classId, form.sectionId, form.examTypeId]);
 
   const loadSchools = async () => {
     const { data, error } = await supabaseService.getSchools();
@@ -92,12 +117,25 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
     if (!error) setExamTypes(data || []);
   };
 
-  const loadExamNames = async () => {
-    if (!user.school_id || !form.examTypeId) return;
+  const loadSubjects = async () => {
+    if (!user.school_id) return;
     const { data, error } = await supabaseService.supabase
-      .from('exam_names')
+      .from('subjects')
       .select('*')
       .eq('school_id', user.school_id)
+      .order('subject_name');
+    if (!error) setSubjects(data || []);
+  };
+
+  const loadExamNames = async () => {
+    if (!form.schoolId || !form.batchId || !form.classId || !form.sectionId || !form.examTypeId) return;
+    const { data, error } = await supabaseService.supabase
+      .from('final_exam_names')
+      .select('*')
+      .eq('school_id', form.schoolId)
+      .eq('batch_id', form.batchId)
+      .eq('class_id', form.classId)
+      .eq('section_id', form.sectionId)
       .eq('exam_type_id', form.examTypeId);
     if (!error) setExamNames(data || []);
   };
@@ -114,6 +152,14 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
     setSelectAll(false);
     
     try {
+      const { data: percentages } = await supabaseService.supabase
+        .from('exam_percentages')
+        .select('*')
+        .eq('final_exam_name_id', form.examNameId)
+        .order('order');
+      
+      setExamPercentages(percentages || []);
+
       const batchData = batches.find((b: any) => b.id == form.batchId);
       const classData = classes.find((c: any) => c.id == form.classId);
       const sectionData = sections.find((s: any) => s.id == form.sectionId);
@@ -143,6 +189,61 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
         }));
         
         setStudents(enrichedData);
+
+        if (percentages && percentages.length > 0) {
+          const marksMap: {[key: string]: {[key: string]: {[key: string]: number}}} = {};
+          
+          const examNameMap: {[key: string]: string} = {};
+          for (const perc of percentages) {
+            const { data: examData } = await supabaseService.supabase
+              .from('exam_names')
+              .select('id')
+              .eq('exam_name', perc.exam_name_id)
+              .eq('school_id', form.schoolId)
+              .eq('batch_id', form.batchId)
+              .eq('class_id', form.classId)
+              .eq('section_id', form.sectionId)
+              .eq('exam_type_id', perc.exam_type_id)
+              .maybeSingle();
+            
+            if (examData) {
+              examNameMap[perc.exam_name_id] = examData.id;
+            }
+          }
+          
+          for (const student of data) {
+            marksMap[student.id] = {};
+            
+            for (const subject of subjects) {
+              marksMap[student.id][subject.id] = {};
+              
+              for (const perc of percentages) {
+                const actualExamId = examNameMap[perc.exam_name_id];
+                if (!actualExamId) continue;
+                
+                const { data: marksData } = await supabaseService.supabase
+                  .from('student_marks')
+                  .select('theory_marks_obtained, practical_marks_obtained')
+                  .eq('student_id', student.id)
+                  .eq('subject_id', subject.id)
+                  .eq('exam_name_id', actualExamId)
+                  .eq('exam_type_id', perc.exam_type_id)
+                  .eq('school_id', form.schoolId)
+                  .eq('batch_id', form.batchId)
+                  .eq('class_id', form.classId)
+                  .eq('section_id', form.sectionId)
+                  .maybeSingle();
+                
+                if (marksData) {
+                  const total = (marksData.theory_marks_obtained || 0) + (marksData.practical_marks_obtained || 0);
+                  marksMap[student.id][subject.id][perc.exam_name_id] = total;
+                }
+              }
+            }
+          }
+          
+          setStudentMarks(marksMap);
+        }
       } else {
         alert('No students found for the selected criteria');
       }
@@ -392,10 +493,37 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center">Batch</th>
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center">Class</th>
                     <th className="border border-white px-3 py-3 text-sm font-semibold text-center">Section</th>
+                    {subjects.map(subject => (
+                      <React.Fragment key={subject.id}>
+                        {examPercentages.map((perc, idx) => {
+                          const examType = examTypes.find((t: any) => t.id == perc.exam_type_id)?.exam_type || '';
+                          return (
+                            <th key={`${subject.id}-${idx}`} className="border border-white px-2 py-2 text-xs font-semibold text-center">
+                              {subject.subject_name}<br/>
+                              {perc.exam_name_id}<br/>
+                              {examType && `(${examType})`}<br/>
+                              {perc.exam_percentage}%
+                            </th>
+                          );
+                        })}
+                        <th className="border border-white px-2 py-2 text-xs font-semibold text-center bg-blue-700">
+                          {subject.subject_name}<br/>Final %
+                        </th>
+                      </React.Fragment>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((student: any, index: number) => (
+                  {students.map((student: any, index: number) => {
+                    const marks = studentMarks[student.id] || {};
+                    let finalPercentage = 0;
+                    
+                    examPercentages.forEach(perc => {
+                      const mark = marks[perc.exam_name_id] || 0;
+                      finalPercentage += (mark * perc.exam_percentage) / 100;
+                    });
+
+                    return (
                     <tr key={student.id} className={`${index % 2 === 1 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}>
                       <td className="border border-gray-300 px-3 py-3 text-sm text-center">
                         <input 
@@ -421,8 +549,31 @@ const PrintAdmitCard: React.FC<{ user: User }> = ({ user }) => {
                       <td className="border border-gray-300 px-3 py-3 text-sm text-center">{student.batches?.batch_no || 'N/A'}</td>
                       <td className="border border-gray-300 px-3 py-3 text-sm text-center">{student.classes?.class_name}</td>
                       <td className="border border-gray-300 px-3 py-3 text-sm text-center">{student.sections?.section_name}</td>
+                      {subjects.map(subject => {
+                        const subjectMarks = studentMarks[student.id]?.[subject.id] || {};
+                        let subjectFinalPercentage = 0;
+                        
+                        examPercentages.forEach(perc => {
+                          const mark = subjectMarks[perc.exam_name_id] || 0;
+                          subjectFinalPercentage += (mark * perc.exam_percentage) / 100;
+                        });
+                        
+                        return (
+                          <React.Fragment key={subject.id}>
+                            {examPercentages.map((perc, pIdx) => (
+                              <td key={pIdx} className="border border-gray-300 px-2 py-1 text-xs text-center">
+                                {subjectMarks[perc.exam_name_id] || '-'}
+                              </td>
+                            ))}
+                            <td className="border border-gray-300 px-2 py-1 text-xs text-center font-bold bg-blue-50">
+                              {subjectFinalPercentage > 0 ? subjectFinalPercentage.toFixed(2) : '-'}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

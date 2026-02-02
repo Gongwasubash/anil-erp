@@ -12,6 +12,8 @@ const ViewStudentsMarksModule: React.FC = () => {
   const [examTypeData, setExamTypeData] = useState<any>(null);
   const [examNameData, setExamNameData] = useState<any>(null);
   const [batchData, setBatchData] = useState<any>(null);
+  const [classData, setClassData] = useState<any>(null);
+  const [sectionData, setSectionData] = useState<any>(null);
 
   useEffect(() => {
     const data = sessionStorage.getItem('printMarksheetData');
@@ -21,38 +23,9 @@ const ViewStudentsMarksModule: React.FC = () => {
       loadSchoolData(parsedData.form.schoolId);
       loadExamData(parsedData.form.examTypeId, parsedData.form.examNameId);
       loadBatchData(parsedData.form.batchId);
+      loadClassData(parsedData.form.classId);
+      loadSectionData(parsedData.form.sectionId);
       loadAttendanceData(parsedData);
-    } else {
-      // Sample data
-      const sampleData = {
-        student: {
-          student_name: "ANIL BK",
-          roll_no: "4",
-          class_name: "1",
-          section_name: "A",
-          subjects: {
-            "1": { subject_name: "English", theory_marks_obtained: 85, practical_marks_obtained: 0, credit_hour_th_obtained: 4, exam_marks: { th_marks: 100, pr_in_marks: 0 } },
-            "2": { subject_name: "Nepali", theory_marks_obtained: 78, practical_marks_obtained: 19, credit_hour_th_obtained: 5, exam_marks: { th_marks: 100, pr_in_marks: 20 } },
-            "3": { subject_name: "Mathematics", theory_marks_obtained: 92, practical_marks_obtained: 18, credit_hour_th_obtained: 6, exam_marks: { th_marks: 100, pr_in_marks: 20 } },
-            "4": { subject_name: "Science", theory_marks_obtained: 88, practical_marks_obtained: 20, credit_hour_th_obtained: 5, exam_marks: { th_marks: 100, pr_in_marks: 20 } },
-            "5": { subject_name: "Social Studies", theory_marks_obtained: 90, practical_marks_obtained: 0, credit_hour_th_obtained: 4, exam_marks: { th_marks: 100, pr_in_marks: 0 } }
-          }
-        },
-        form: { schoolId: "1", printDate: "1/28/2026" },
-        grades: [
-          { grade_name: "A+", grade_point: "4.0", min_percent: "90", max_percent: "100", description: "Outstanding" },
-          { grade_name: "A", grade_point: "3.6", min_percent: "80", max_percent: "89", description: "Excellent" },
-          { grade_name: "B+", grade_point: "3.2", min_percent: "70", max_percent: "79", description: "Very Good" },
-          { grade_name: "B", grade_point: "2.8", min_percent: "60", max_percent: "69", description: "Good" },
-          { grade_name: "C+", grade_point: "2.4", min_percent: "50", max_percent: "59", description: "Satisfactory" },
-          { grade_name: "C", grade_point: "2.0", min_percent: "40", max_percent: "49", description: "Acceptable" }
-        ]
-      };
-      setMarksheetData(sampleData);
-      setSchoolData({ school_name: "EVEREST INTERNATIONAL SCHOOL", address: "Kathmandu, Nepal", phone: "+977-1-4567890", email: "info@everestschool.edu.np" });
-      setExamTypeData({ exam_type: "Final Examination" });
-      setExamNameData({ exam_name: "Annual Exam 2024" });
-      setBatchData({ batch_no: "2080" });
     }
   }, [navigate]);
 
@@ -79,6 +52,16 @@ const ViewStudentsMarksModule: React.FC = () => {
   const loadBatchData = async (batchId: string) => {
     const { data, error } = await supabaseService.supabase.from('batches').select('*').eq('id', batchId).single();
     if (!error && data) setBatchData(data);
+  };
+
+  const loadClassData = async (classId: string) => {
+    const { data, error } = await supabaseService.supabase.from('classes').select('*').eq('id', classId).single();
+    if (!error && data) setClassData(data);
+  };
+
+  const loadSectionData = async (sectionId: string) => {
+    const { data, error } = await supabaseService.supabase.from('sections').select('*').eq('id', sectionId).single();
+    if (!error && data) setSectionData(data);
   };
 
   const loadAttendanceData = async (parsedData: any) => {
@@ -146,23 +129,25 @@ const ViewStudentsMarksModule: React.FC = () => {
   console.log('Final students to render:', studentsToRender);
 
   const styles = {
-    body: { fontFamily: 'Arial, sans-serif', backgroundColor: '#f0f0f0', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '20px', gap: '30px' },
-    container: { width: '8.27in', minWidth: '8.27in', maxWidth: '8.27in', height: '11.69in', minHeight: '11.69in', maxHeight: '11.69in', background: '#fff', border: '1px solid #000', padding: '0.5in', boxShadow: '0 0 10px rgba(0,0,0,0.1)', fontSize: '12px', overflow: 'hidden' },
-    header: { display: 'flex', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '5px', marginBottom: '5px' },
+    body: { fontFamily: 'Arial, sans-serif', backgroundColor: '#525659', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '20px', gap: '20px' },
+    container: { width: '210mm', background: '#fff', padding: '10mm', boxShadow: '0 0 10px rgba(0,0,0,0.3)', fontSize: '13px', display: 'flex', flexDirection: 'column' as const, fontWeight: 'bold' as const },
+    header: { display: 'flex', alignItems: 'center', borderBottom: '2px solid #2E3092', paddingBottom: '8px', marginBottom: '8px' },
+    logo: { width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px', flexShrink: 0 },
+    logoImg: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' as const },
     headerContent: { flex: 1, textAlign: 'center' as const },
-    logo: { width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: '48px', fontWeight: 'bold', marginRight: '15px' },
-    h1: { margin: '0', fontSize: '40px', fontWeight: 'bold' },
-    p: { margin: '2px 0', fontSize: '14px' },
-    studentDetails: { marginBottom: '15px', border: '1px solid #000', padding: '10px', fontSize: '14px', fontWeight: 'bold' },
-    row: { display: 'flex', justifyContent: 'space-between', marginBottom: '3px' },
-    table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: '15px' },
-    th: { border: '1px solid black', textAlign: 'center' as const, padding: '6px', fontSize: '12px', backgroundColor: '#f2f2f2', fontWeight: 'bold' },
-    td: { border: '1px solid black', textAlign: 'center' as const, padding: '6px', fontSize: '12px', fontWeight: 'normal' },
-    bottomGrid: { display: 'flex', gap: '15px', marginTop: '15px' },
-    gradingScale: { flex: 1, border: '1px solid #000', padding: '8px' },
-    h4: { textAlign: 'center' as const, marginTop: '0', marginBottom: '8px', textDecoration: 'underline', fontWeight: 'bold', fontSize: '16px' },
-    footerSigs: { display: 'flex', justifyContent: 'space-between', marginTop: '80px' },
-    sigBox: { width: '120px', borderTop: '1px solid #000', textAlign: 'center' as const, paddingTop: '3px', fontSize: '14px', fontWeight: 'bold' }
+    schoolTitle: { margin: '0', color: '#2E3092', fontSize: '32px', fontWeight: 'bold', textTransform: 'uppercase' as const },
+    marksheetTitle: { fontSize: '18px', fontWeight: 'bold', margin: '6px 0', color: '#2E3092' },
+    academicYear: { fontSize: '14px', margin: '4px 0', fontWeight: 'bold' },
+    studentDetails: { marginBottom: '8px', fontSize: '15px', fontWeight: 'bold', padding: '8px 0', borderBottom: '2px solid #2E3092', borderTop: '2px solid #2E3092' },
+    detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '4px' },
+    table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: '8px' },
+    th: { border: '1px solid #2E3092', textAlign: 'center' as const, padding: '5px', fontSize: '12px', backgroundColor: '#EAEFFA', fontWeight: 'bold', color: '#2E3092' },
+    td: { border: '1px solid #2E3092', textAlign: 'center' as const, padding: '5px', fontSize: '12px', fontWeight: 'bold' },
+    bottomGrid: { display: 'flex', gap: '8px', marginTop: 'auto' },
+    gradingScale: { flex: 1, border: '2px solid #2E3092', padding: '4px' },
+    h4: { textAlign: 'center' as const, marginTop: '0', marginBottom: '4px', fontWeight: 'bold', fontSize: '13px', color: '#2E3092' },
+    footerSigs: { display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '8px' },
+    sigBox: { textAlign: 'center' as const, fontSize: '13px', fontWeight: 'bold', color: '#2E3092' }
   };
 
   return (
@@ -174,41 +159,37 @@ const ViewStudentsMarksModule: React.FC = () => {
         <div style={styles.header}>
           <div style={styles.logo}>
             {schoolData?.logo_url ? (
-              <img 
-                src={schoolData.logo_url} 
-                alt="School Logo" 
-                style={{ width: '120px', height: '120px', objectFit: 'cover' }}
-                onError={(e) => {
-                  console.log('Logo failed to load:', schoolData.logo_url);
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div style={{ 
-              ...styles.logo, 
-              display: schoolData?.logo_url ? 'none' : 'flex'
-            }}>
-              {schoolData?.school_name?.charAt(0) || 'S'}
-            </div>
+              <img src={schoolData.logo_url} alt="Logo" style={styles.logoImg} />
+            ) : (
+              <div style={{ color: '#2E3092', fontSize: '40px', fontWeight: 'bold' }}>{schoolData?.school_name?.charAt(0) || 'S'}</div>
+            )}
           </div>
           <div style={styles.headerContent}>
-            <h1 style={styles.h1}>{schoolData?.school_name || 'SCHOOL NAME'}</h1>
-            <p style={styles.p}>{schoolData?.address || 'School Address'}</p>
-            <p style={styles.p}>Ph: {schoolData?.phone || 'Phone Number'} | {schoolData?.email || 'Email'}</p>
-            <h3 style={{ margin: '8px 0', fontSize: '18px', fontWeight: 'bold' }}>{examNameData?.exam_name || 'Second Term'} - Academic Year {batchData?.batch_no || '2080'}</h3>
+            <h1 style={styles.schoolTitle}>{schoolData?.school_name || 'SCHOOL NAME'}</h1>
+            <div style={styles.marksheetTitle}>MARKS AND GRADE-SHEET</div>
+            <div style={styles.academicYear}>{examNameData?.exam_name || 'Exam'} - {batchData?.batch_no || '2080'}</div>
           </div>
         </div>
 
         <div style={styles.studentDetails}>
-          <div style={styles.row}>
-            <span><strong>Name of Student:</strong> <span style={{ borderBottom: '1px dotted #000', paddingBottom: '2px', minWidth: '300px', display: 'inline-block' }}>{currentStudent.student_name}</span></span>
-            <span><strong>Roll No:</strong> <span style={{ borderBottom: '1px dotted #000', paddingBottom: '2px', minWidth: '150px', display: 'inline-block' }}>{currentStudent.roll_no}</span></span>
+          <div style={styles.detailRow}>
+            <span>Name: {currentStudent.student_name}</span>
+            <span>Class: {classData?.class_name || currentStudent.class_name}</span>
           </div>
-          <div style={styles.row}>
-            <span><strong>Class:</strong> <span style={{ borderBottom: '1px dotted #000', paddingBottom: '2px', minWidth: '150px', display: 'inline-block' }}>{currentStudent.class_name}</span></span>
-            <span><strong>Section:</strong> <span style={{ borderBottom: '1px dotted #000', paddingBottom: '2px', minWidth: '150px', display: 'inline-block' }}>{currentStudent.section_name}</span></span>
-            <span><strong>Date:</strong> <span style={{ borderBottom: '1px dotted #000', paddingBottom: '2px', minWidth: '200px', display: 'inline-block' }}>{form.printDate || ''}</span></span>
+          <div style={styles.detailRow}>
+            <span>Section: {sectionData?.section_name || currentStudent.section_name}</span>
+            <span>Roll No.: {currentStudent.roll_no}</span>
+            <span>Date: {form.printDate || new Date().toLocaleDateString()}</span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '8px', fontSize: '13px', fontWeight: 'bold', padding: '4px', backgroundColor: '#EAEFFA', border: '1px solid #2E3092' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+            <span>Batch: {batchData?.batch_no || '-'}</span>
+            <span>Class: {classData?.class_name || '-'}</span>
+            <span>Section: {sectionData?.section_name || '-'}</span>
+            <span>Exam Type: {examTypeData?.exam_type || '-'}</span>
+            <span>Exam: {examNameData?.exam_name || '-'}</span>
           </div>
         </div>
 
@@ -279,6 +260,22 @@ const ViewStudentsMarksModule: React.FC = () => {
                   }, 0) / Object.keys(currentStudent.subjects).length).toFixed(2)}
               </td>
               <td style={{ ...styles.td, fontWeight: 'bold', color: 'green' }}>PASS</td>
+            </tr>
+            <tr>
+              <td colSpan={7} style={{ ...styles.td, textAlign: 'right', fontWeight: 'bold' }}>Remarks:</td>
+              <td style={{ ...styles.td, fontWeight: 'bold', textAlign: 'left' }}>
+                {(() => {
+                  const avgGPA = Object.values(currentStudent.subjects).reduce((sum: number, mark: any) => {
+                    const totalObtained = (mark.theory_marks_obtained || 0) + (mark.practical_marks_obtained || 0);
+                    const totalPossible = (mark.exam_marks?.th_marks || 100) + (mark.exam_marks?.pr_in_marks || 0);
+                    const percentage = totalPossible > 0 ? ((totalObtained / totalPossible) * 100) : 0;
+                    return sum + parseFloat(calculateGrade(percentage, grades).gpa);
+                  }, 0) / Object.keys(currentStudent.subjects).length;
+                  const gpaPercent = (avgGPA / 4) * 100;
+                  const matchedGrade = grades.find(g => gpaPercent >= parseFloat(g.min_percent) && gpaPercent <= parseFloat(g.max_percent));
+                  return matchedGrade?.description || 'No remarks';
+                })()}
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -358,9 +355,9 @@ const ViewStudentsMarksModule: React.FC = () => {
         </div>
 
         <div style={styles.footerSigs}>
-          <div style={styles.sigBox}>Class Teacher</div>
-          <div style={styles.sigBox}>Head Teacher</div>
-          <div style={styles.sigBox}>School Stamp</div>
+          <div style={styles.sigBox}><div style={{ borderTop: '1px solid #2E3092', paddingTop: '4px', marginTop: '80px', width: '150px' }}>Class Teacher</div></div>
+          <div style={styles.sigBox}><div style={{ borderTop: '1px solid #2E3092', paddingTop: '4px', marginTop: '80px', width: '150px' }}>School Seal</div></div>
+          <div style={styles.sigBox}><div style={{ borderTop: '1px solid #2E3092', paddingTop: '4px', marginTop: '80px', width: '150px' }}>Principal</div></div>
         </div>
 
 

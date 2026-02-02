@@ -7,7 +7,6 @@ const AdmitCardPrint: React.FC = () => {
   const [admitCardData, setAdmitCardData] = useState<any>(null);
   const [schoolData, setSchoolData] = useState<any>(null);
   const [examTypeData, setExamTypeData] = useState<any>(null);
-  const [examNameData, setExamNameData] = useState<any>(null);
 
   useEffect(() => {
     const data = sessionStorage.getItem('printAdmitCardData');
@@ -15,7 +14,7 @@ const AdmitCardPrint: React.FC = () => {
       const parsedData = JSON.parse(data);
       setAdmitCardData(parsedData);
       loadSchoolData(parsedData.form.schoolId);
-      loadExamData(parsedData.form.examTypeId, parsedData.form.examNameId);
+      loadExamData(parsedData.form.examTypeId);
     }
   }, []);
 
@@ -28,14 +27,14 @@ const AdmitCardPrint: React.FC = () => {
     if (!error && data) setSchoolData(data);
   };
 
-  const loadExamData = async (examTypeId: string, examNameId: string) => {
-    const [examTypeResult, examNameResult] = await Promise.all([
-      supabaseService.supabase.from('exam_types').select('*').eq('id', examTypeId).single(),
-      supabaseService.supabase.from('exam_names').select('*').eq('id', examNameId).single()
-    ]);
+  const loadExamData = async (examTypeId: string) => {
+    const { data, error } = await supabaseService.supabase
+      .from('exam_types')
+      .select('*')
+      .eq('id', examTypeId)
+      .single();
     
-    if (!examTypeResult.error) setExamTypeData(examTypeResult.data);
-    if (!examNameResult.error) setExamNameData(examNameResult.data);
+    if (!error) setExamTypeData(data);
   };
 
   if (!admitCardData) {
@@ -191,7 +190,7 @@ const AdmitCardPrint: React.FC = () => {
               </div>
             </div>
 
-            <div className="term">{student.batches?.batch_no || 'Second Term'} - {examNameData?.exam_name || 'Exam Name'}</div>
+            <div className="term">{student.batches?.batch_no || 'Second Term'} - {form.examNameId || 'Exam Name'}</div>
 
             <div className="body">
               <div className="side">ADMIT CARD</div>

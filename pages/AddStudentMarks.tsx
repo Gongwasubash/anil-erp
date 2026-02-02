@@ -56,12 +56,13 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
   }, [form.schoolId, form.batchId, form.classId, form.sectionId]);
 
   useEffect(() => {
-    if (form.examTypeId) {
+    if (form.schoolId && form.batchId && form.classId && form.sectionId && form.examTypeId) {
       loadExamNames();
     } else {
       setExamNames([]);
+      setForm(p => ({ ...p, examNameId: '' }));
     }
-  }, [form.examTypeId]);
+  }, [form.schoolId, form.batchId, form.classId, form.sectionId, form.examTypeId]);
 
 
 
@@ -176,7 +177,7 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadExamNames = async () => {
-    if (!form.schoolId || !form.examTypeId) {
+    if (!form.schoolId || !form.batchId || !form.classId || !form.sectionId || !form.examTypeId) {
       setExamNames([]);
       return;
     }
@@ -184,14 +185,25 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
       .from('exam_names')
       .select('*')
       .eq('school_id', form.schoolId)
+      .eq('batch_id', form.batchId)
+      .eq('class_id', form.classId)
+      .eq('section_id', form.sectionId)
       .eq('exam_type_id', form.examTypeId);
     if (!error) setExamNames(data || []);
   };
 
   const loadExamMarks = async () => {
+    if (!form.schoolId || !form.batchId || !form.classId || !form.sectionId || !form.subjectId || !form.examTypeId || !form.examNameId) {
+      console.log('Missing required fields for exam marks');
+      setExamMarks(null);
+      return;
+    }
+    
     console.log('Loading exam marks with params:', {
       school_id: form.schoolId,
+      batch_id: form.batchId,
       class_id: form.classId,
+      section_id: form.sectionId,
       subject_id: form.subjectId,
       exam_type_id: form.examTypeId,
       exam_name_id: form.examNameId
@@ -201,7 +213,9 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
       .from('exam_marks')
       .select('*')
       .eq('school_id', form.schoolId)
+      .eq('batch_id', form.batchId)
       .eq('class_id', form.classId)
+      .eq('section_id', form.sectionId)
       .eq('subject_id', form.subjectId)
       .eq('exam_type_id', form.examTypeId)
       .eq('exam_name_id', form.examNameId)
@@ -233,23 +247,46 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadStudents = async () => {
-    if (!user.school_id) return;
-    const { data, error } = await supabaseService.supabase
-      .from('students')
-      .select(`
-        *,
-        batches(batch_no),
-        classes(class_name),
-        sections(section_name)
-      `)
-      .eq('school_id', form.schoolId)
-      .eq('batch_id', form.batchId)
-      .eq('class_id', form.classId)
-      .eq('section_id', form.sectionId)
-      .order('roll_no');
+    if (!form.schoolId) return;
     
-    if (!error) {
-      setStudents(data || []);
+    // Get the actual batch_no, class_name, and section_name from the selected IDs
+    const batchData = batches.find((b: any) => String(b.id) === String(form.batchId));
+    const classData = classes.find((c: any) => String(c.id) === String(form.classId));
+    const sectionData = sections.find((s: any) => String(s.id) === String(form.sectionId));
+    
+    console.log('Query params:', { batchData, classData, sectionData });
+    
+    let query = supabaseService.supabase
+      .from('students')
+      .select('*')
+      .eq('school_id', form.schoolId);
+    
+    if (batchData) {
+      query = query.eq('batch_no', batchData.batch_no);
+    }
+    if (classData) {
+      query = query.eq('class', classData.class_name);
+    }
+    if (sectionData) {
+      query = query.eq('section', sectionData.section_name);
+    }
+    
+    const { data, error } = await query.order('roll_no');
+    
+    console.log('Students query result:', { data, error, count: data?.length });
+    
+    if (!error && data) {
+      if (data.length === 0) {
+        alert('No students found for the selected School, Batch, Class, and Section combination.');
+      }
+      // Enrich student data with batch, class, section info from the students table itself
+      const enrichedData = data.map(student => ({
+        ...student,
+        batch_display: student.batch_no,
+        class_display: student.class,
+        section_display: student.section
+      }));
+      setStudents(enrichedData || []);
       loadExistingMarks(data || []);
       // Also get subject name from backend
       if (form.subjectId) {
@@ -262,6 +299,9 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
           setSelectedSubjectName(subjectData.subject_name);
         }
       }
+    } else {
+      console.error('Error loading students:', error);
+      alert('Error loading students: ' + (error?.message || 'Unknown error'));
     }
   };
 
@@ -508,12 +548,7 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Roll Number</th>
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">firstname</th>
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">lastname</th>
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Batch</th>
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Class</th>
-                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Section</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Student Info</th>
                       <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Subject</th>
                       <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Theory Marks ({examMarks?.th_marks || 'N/A'})</th>
                       <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Theory Marks Obtained</th>
@@ -537,12 +572,11 @@ const AddStudentMarks: React.FC<{ user: User }> = ({ user }) => {
                       
                       return (
                         <tr key={student.id} className="hover:bg-gray-50">
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{student.roll_no}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{student.first_name}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{student.last_name}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{student.batches?.batch_no || ''}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{student.classes?.class_name || ''}</td>
-                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{student.sections?.section_name || ''}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">
+                            <div>Roll: {student.roll_no}</div>
+                            <div>{student.first_name} {student.last_name}</div>
+                            <div>Batch: {student.batch_no || student.batch_display} | Class: {student.class || student.class_display} | Sec: {student.section || student.section_display}</div>
+                          </td>
                           <td className="border border-gray-300 px-2 py-1 text-xs text-center">{selectedSubjectName || 'No Subject'}</td>
                           <td className="border border-gray-300 px-2 py-1 text-xs text-center">{examMarks?.th_marks || 0}</td>
                           <td className="border border-gray-300 px-1 py-1 text-center">

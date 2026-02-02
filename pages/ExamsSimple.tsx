@@ -79,7 +79,7 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
     schoolId: '',
     batchId: '',
     classId: '',
-    sectionId: '',
+    sectionIds: [] as string[],
     examTypeId: '',
     examName: '',
     isCurrentExam: false
@@ -95,6 +95,7 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
   const [formBatchesList, setFormBatchesList] = useState<any[]>([]);
   const [formClassesList, setFormClassesList] = useState<any[]>([]);
   const [formSectionsList, setFormSectionsList] = useState<any[]>([]);
+  const [formExamTypesList, setFormExamTypesList] = useState<any[]>([]);
   // View Students Marks states
   const [viewStudentsMarksForm, setViewStudentsMarksForm] = useState({
     schoolId: '',
@@ -404,10 +405,10 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
   const handleEditExamName = (examName: any) => {
     setExamNameForm({
       schoolId: examName.school_id || '',
-      batchId: examName.batch_id || '',
-      classId: examName.class_id || '',
-      sectionId: examName.section_id || '',
-      examTypeId: examName.exam_type_id || '',
+      batchId: String(examName.batch_id || ''),
+      classId: String(examName.class_id || ''),
+      sectionIds: examName.section_ids ? examName.section_ids.map((id: any) => String(id)) : [],
+      examTypeId: String(examName.exam_type_id || ''),
       examName: examName.exam_name || '',
       isCurrentExam: examName.is_current_exam || false
     });
@@ -1241,16 +1242,42 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Section*</label>
-                    <select 
-                      value={examNameForm.sectionId} 
-                      onChange={(e) => setExamNameForm(p => ({ ...p, sectionId: e.target.value }))}
-                      className="w-full border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
-                    >
-                      <option value="">--- Select ---</option>
-                      {formSectionsList.map(section => (
-                        <option key={section.id} value={section.id}>{section.section_name}</option>
-                      ))}
-                    </select>
+                    <div className="border border-gray-300 px-3 py-2 bg-white">
+                      <label className="flex items-center space-x-2 mb-2 pb-2 border-b border-gray-200">
+                        <input 
+                          type="checkbox" 
+                          checked={examNameForm.sectionIds.length === formSectionsList.length && formSectionsList.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setExamNameForm(p => ({ ...p, sectionIds: formSectionsList.map(s => String(s.id)) }));
+                            } else {
+                              setExamNameForm(p => ({ ...p, sectionIds: [] }));
+                            }
+                          }}
+                          className="rounded" 
+                        />
+                        <span className="text-xs font-bold">Select All</span>
+                      </label>
+                      <div className="flex flex-wrap gap-3">
+                        {formSectionsList.map(section => (
+                          <label key={section.id} className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              checked={examNameForm.sectionIds.includes(String(section.id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setExamNameForm(p => ({ ...p, sectionIds: [...p.sectionIds, String(section.id)] }));
+                                } else {
+                                  setExamNameForm(p => ({ ...p, sectionIds: p.sectionIds.filter(id => id !== String(section.id)) }));
+                                }
+                              }}
+                              className="rounded" 
+                            />
+                            <span className="text-xs">{section.section_name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Exam Type*</label>
@@ -1289,21 +1316,25 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
               <div className="p-3.5 flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 bg-white border-t">
                 <BlueBtn onClick={async () => {
                   try {
-                    const examData = {
-                      school_id: examNameForm.schoolId,
-                      batch_id: examNameForm.batchId,
-                      class_id: examNameForm.classId,
-                      section_id: examNameForm.sectionId,
-                      exam_type_id: examNameForm.examTypeId,
-                      exam_name: examNameForm.examName,
-                      is_current_exam: examNameForm.isCurrentExam
-                    };
-                    
                     if (editingExamName) {
+                      await supabaseService.supabase
+                        .from('exam_names')
+                        .delete()
+                        .in('id', editingExamName.ids || [editingExamName.id]);
+                      
+                      const examRecords = examNameForm.sectionIds.map(sectionId => ({
+                        school_id: examNameForm.schoolId,
+                        batch_id: parseInt(examNameForm.batchId),
+                        class_id: parseInt(examNameForm.classId),
+                        section_id: parseInt(sectionId),
+                        exam_type_id: parseInt(examNameForm.examTypeId),
+                        exam_name: examNameForm.examName,
+                        is_current_exam: examNameForm.isCurrentExam
+                      }));
+                      
                       const { error } = await supabaseService.supabase
                         .from('exam_names')
-                        .update(examData)
-                        .eq('id', editingExamName.id);
+                        .insert(examRecords);
                         
                       if (error) {
                         alert('Error updating exam name: ' + error.message);
@@ -1315,7 +1346,7 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
                           schoolId: '',
                           batchId: '',
                           classId: '',
-                          sectionId: '',
+                          sectionIds: [],
                           examTypeId: '',
                           examName: '',
                           isCurrentExam: false
@@ -1323,9 +1354,19 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
                         fetchExamNames();
                       }
                     } else {
+                      const examRecords = examNameForm.sectionIds.map(sectionId => ({
+                        school_id: examNameForm.schoolId,
+                        batch_id: parseInt(examNameForm.batchId),
+                        class_id: parseInt(examNameForm.classId),
+                        section_id: parseInt(sectionId),
+                        exam_type_id: parseInt(examNameForm.examTypeId),
+                        exam_name: examNameForm.examName,
+                        is_current_exam: examNameForm.isCurrentExam
+                      }));
+                      
                       const { data, error } = await supabaseService.supabase
                         .from('exam_names')
-                        .insert([examData])
+                        .insert(examRecords)
                         .select();
                         
                       if (error) {
@@ -1339,7 +1380,7 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
                           schoolId: '',
                           batchId: '',
                           classId: '',
-                          sectionId: '',
+                          sectionIds: [],
                           examTypeId: '',
                           examName: '',
                           isCurrentExam: false
@@ -1360,7 +1401,7 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
                     schoolId: '',
                     batchId: '',
                     classId: '',
-                    sectionId: '',
+                    sectionIds: [],
                     examTypeId: '',
                     examName: '',
                     isCurrentExam: false
@@ -1389,41 +1430,63 @@ const ExamsSimple: React.FC<{ user: User }> = ({ user }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {examNamesList.map((examName, idx) => {
-                    // Use the same method as form dropdowns to get display values
-                    const schoolName = formSchoolsList.find(s => s.id === examName.school_id)?.school_name || 
-                                     schoolsList.find(s => s.id === examName.school_id)?.school_name || 'JHOR HIGH SCHOOL';
-                    const batchNo = formBatchesList.find(b => b.id === examName.batch_id)?.batch_no || 
-                                  batchesList.find(b => b.id === examName.batch_id)?.batch_no || '2080';
-                    const className = formClassesList.find(c => c.id === examName.class_id)?.class_name || 
-                                    classesList.find(c => c.id === examName.class_id)?.class_name || '1';
-                    const sectionName = formSectionsList.find(s => s.id === examName.section_id)?.section_name || 
-                                      sectionsList.find(s => s.id === examName.section_id)?.section_name || 'A';
-                    const examTypeName = formExamTypesList.find(t => t.id === examName.exam_type_id)?.exam_type || 
-                                       examTypesList.find(t => t.id === examName.exam_type_id)?.exam_type || 'Annual';
-                    
-                    return (
-                    <tr key={examName.id} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">{idx + 1}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs">{schoolName}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">{batchNo}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">{className}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">{sectionName}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs">{examTypeName}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{examName.exam_name}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">
-                        <button onClick={() => handleEditExamName(examName)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all">
-                          <Edit size={18} />
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">
-                        <button onClick={() => handleDeleteExamName(examName.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all">
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                    );
-                  })}
+                  {(() => {
+                    const groupedExams = examNamesList.reduce((acc: any, examName) => {
+                      const key = `${examName.school_id}-${examName.batch_id}-${examName.class_id}-${examName.exam_type_id}-${examName.exam_name}`;
+                      if (!acc[key]) {
+                        acc[key] = {
+                          ...examName,
+                          section_ids: [examName.section_id],
+                          ids: [examName.id]
+                        };
+                      } else {
+                        acc[key].section_ids.push(examName.section_id);
+                        acc[key].ids.push(examName.id);
+                      }
+                      return acc;
+                    }, {});
+
+                    return Object.values(groupedExams).map((examName: any, idx) => {
+                      const schoolName = formSchoolsList.find(s => s.id === examName.school_id)?.school_name || 
+                                       schoolsList.find(s => s.id === examName.school_id)?.school_name || 'JHOR HIGH SCHOOL';
+                      const batchNo = formBatchesList.find(b => b.id == examName.batch_id)?.batch_no || 
+                                    batchesList.find(b => b.id == examName.batch_id)?.batch_no || '2080';
+                      const className = formClassesList.find(c => c.id == examName.class_id)?.class_name || 
+                                      classesList.find(c => c.id == examName.class_id)?.class_name || '1';
+                      const sectionNames = examName.section_ids.map((sId: any) => 
+                        formSectionsList.find(s => s.id == sId)?.section_name || 
+                        sectionsList.find(s => s.id == sId)?.section_name || 'N/A'
+                      ).sort().join(', ');
+                      const examTypeName = formExamTypesList.find(t => t.id == examName.exam_type_id)?.exam_type || 
+                                         examTypesList.find(t => t.id == examName.exam_type_id)?.exam_type || 'Annual';
+                      
+                      return (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{idx + 1}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs">{schoolName}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{batchNo}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{className}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">{sectionNames}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs">{examTypeName}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{examName.exam_name}</td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                          <button onClick={() => handleEditExamName(examName)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-100 rounded-xl transition-all">
+                            <Edit size={18} />
+                          </button>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                          <button onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this exam name for all sections?')) {
+                              examName.ids.forEach((id: string) => handleDeleteExamName(id));
+                            }
+                          }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all">
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>

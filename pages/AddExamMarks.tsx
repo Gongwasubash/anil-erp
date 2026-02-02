@@ -37,16 +37,17 @@ const AddExamMarks: React.FC<{ user: User }> = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    if (form.examTypeId) {
+    if (form.schoolId && form.batchId && form.classId && form.sectionId && form.examTypeId) {
       loadExamNames();
     } else {
       setExamNames([]);
+      setForm(p => ({ ...p, examNameId: '' }));
     }
-  }, [form.examTypeId]);
+  }, [form.schoolId, form.batchId, form.classId, form.sectionId, form.examTypeId]);
 
   useEffect(() => {
     if (form.examNameId && form.schoolId && form.batchId && form.classId && form.sectionId && form.examTypeId) {
-      loadExistingMarks();
+      // Don't auto-load marks - only load when search is clicked
     } else {
       setExistingMarks([]);
       setIsUpdate(false);
@@ -97,13 +98,19 @@ const AddExamMarks: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const loadExamNames = async () => {
-    if (!user.school_id || !form.examTypeId) return;
+    if (!form.schoolId || !form.batchId || !form.classId || !form.sectionId || !form.examTypeId) return;
     const { data, error } = await supabaseService.supabase
       .from('exam_names')
       .select('*')
-      .eq('school_id', user.school_id)
+      .eq('school_id', form.schoolId)
+      .eq('batch_id', form.batchId)
+      .eq('class_id', form.classId)
+      .eq('section_id', form.sectionId)
       .eq('exam_type_id', form.examTypeId);
-    if (!error) setExamNames(data || []);
+    if (!error) {
+      console.log('Exam Names Data:', data);
+      setExamNames(data || []);
+    }
   };
 
   const loadSubjectAssignments = async () => {
@@ -164,6 +171,15 @@ const AddExamMarks: React.FC<{ user: User }> = ({ user }) => {
         assignment.subject_ids.includes(String(s.id))
       );
       setAvailableSubjects(assignedSubjects);
+      // Load existing marks only when search is clicked
+      if (form.examTypeId && form.examNameId) {
+        loadExistingMarks();
+      } else {
+        // Clear marks if exam details not selected
+        setMarksData({});
+        setIsUpdate(false);
+        setExistingMarks([]);
+      }
     } else {
       setAvailableSubjects([]);
       alert('No subjects assigned for this combination.');
@@ -220,9 +236,8 @@ const AddExamMarks: React.FC<{ user: User }> = ({ user }) => {
         alert('Error saving marks: ' + error.message);
       } else {
         alert(isUpdate ? 'Marks updated successfully!' : 'Exam marks saved successfully!');
-        setMarksData({});
-        setIsUpdate(false);
-        setExistingMarks([]);
+        // Reload the marks data after successful save/update
+        await loadExistingMarks();
       }
     } catch (err) {
       alert('Database connection error');
@@ -341,6 +356,54 @@ const AddExamMarks: React.FC<{ user: User }> = ({ user }) => {
               </div>
             </div>
           </div>
+
+          {/* Exam Names Table */}
+          {examNames.length > 0 && (
+            <div className="bg-white border border-gray-300 mt-6">
+              <div className="bg-gray-100 px-4 py-2 border-b border-gray-300">
+                <h3 className="text-sm font-bold text-gray-700">Available Exam Names</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Sl No.</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">School</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Batch</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Class</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Section</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Exam Type</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Exam Name</th>
+                      <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">Current</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {examNames.map((exam: any, index: number) => {
+                      const school = schools.find((s: any) => String(s.id) === String(exam.school_id));
+                      const batch = batches.find((b: any) => String(b.id) === String(exam.batch_id));
+                      const cls = classes.find((c: any) => String(c.id) === String(exam.class_id));
+                      const section = sections.find((s: any) => String(s.id) === String(exam.section_id));
+                      const examType = examTypes.find((et: any) => String(et.id) === String(exam.exam_type_id));
+                      return (
+                        <tr key={exam.id} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{index + 1}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{school?.school_name || '-'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{batch?.batch_no || '-'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{cls?.class_name || '-'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">{section?.section_name || '-'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs">{examType?.exam_type || '-'}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs font-semibold">{exam.exam_name}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-xs text-center">
+                            {exam.is_current_exam ? '✓' : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Subject Configuration Table */}
           {availableSubjects.length > 0 && (
